@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from 'react';
-import { faelle, reportData, type Fall } from '../lib/mockData';
+import type { Fall } from '../lib/mockData';
 
 const risikofarbe: Record<string, string> = {
   Kritisch: 'bg-red-500/10 text-red-300',
@@ -86,23 +86,57 @@ function ProgressBar({ label, value }: { label: string; value: number }) {
 }
 
 export default function DashboardPage() {
-  const [selectedFall, setSelectedFall] = useState<Fall>(() => faelle.find((fall) => fall.id === 'HZE-118') ?? faelle[0]);
+  const [data, setData] = useState<{ faelle: Fall[]; reportData: any } | null>(null);
+  const reportLocal = data?.reportData ?? {
+    monat: '',
+    einsparpotential: 0,
+    budget: 0,
+    executiveSummary: { overview: '', bullets: [] },
+    policyActions: [],
+    budgetWarnungen: [],
+    kpis: [],
+    eskalationsfeed: [],
+  } as const;
+
+  const [selectedFall, setSelectedFall] = useState<Fall | null>(null);
   const [riskFilter, setRiskFilter] = useState<RiskFilter>('Alle');
   const [simulationLoad, setSimulationLoad] = useState(18);
 
+  useEffect(() => {
+    let mounted = true;
+    fetch('/api/mockData')
+      .then((r) => r.json())
+      .then((payload) => {
+        if (!mounted) return;
+        // payload shape: { faelle, reportData }
+        setData(payload);
+        const faelle = Array.isArray(payload?.faelle) ? payload.faelle : [];
+        const first = faelle.find((f: Fall) => f.id === 'HZE-118') ?? faelle[0] ?? null;
+        setSelectedFall(first);
+      })
+      .catch(() => {
+        if (!mounted) return;
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const faelleLocal = data?.faelle ?? [];
   const filteredFaelle = useMemo(() => {
-    if (riskFilter === 'Alle') return faelle;
-    return faelle.filter((fall) => fall.risiko === riskFilter);
-  }, [riskFilter]);
+    if (riskFilter === 'Alle') return faelleLocal;
+    return faelleLocal.filter((fall) => fall.risiko === riskFilter);
+  }, [riskFilter, faelleLocal]);
 
   useEffect(() => {
-    if (!filteredFaelle.some((fall) => fall.id === selectedFall.id)) {
-      setSelectedFall(filteredFaelle[0] ?? faelle[0]);
+    if (!selectedFall && filteredFaelle.length) setSelectedFall(filteredFaelle[0]);
+    if (selectedFall && !filteredFaelle.some((fall) => fall.id === selectedFall.id)) {
+      setSelectedFall(filteredFaelle[0] ?? null);
     }
   }, [filteredFaelle, selectedFall]);
 
-  const simulationEinsparung = reportData.einsparpotential + simulationLoad * 950;
-  const simulationBudgetShadow = reportData.budget - simulationEinsparung;
+  const simulationEinsparung = (reportLocal.einsparpotential ?? 0) + simulationLoad * 950;
+  const simulationBudgetShadow = (reportLocal.budget ?? 0) - simulationEinsparung;
   const simulationStabilized = Math.min(92, 56 + simulationLoad);
 
   const feedEvents = useMemo(() => {
@@ -141,19 +175,45 @@ export default function DashboardPage() {
       },
     ];
 
-    const combined = [...simulatedEvents, ...reportData.eskalationsfeed.map((item, index) => ({ ...item, id: `feed-${index}` }))];
+    const remote = Array.isArray(reportLocal.eskalationsfeed) ? (reportLocal.eskalationsfeed as any[]) : [];
+    const combined = [...simulatedEvents, ...remote.map((item: any, index: number) => ({ ...item, id: `feed-${index}` }))];
     if (riskFilter === 'Alle') return combined;
     return combined.filter((item) => item.status === riskFilter);
   }, [riskFilter]);
 
   const kostenAmpel = useMemo(
     () => ({
-      rot: faelle.filter((item) => item.kostenstatus === 'Rot').length,
-      gelb: faelle.filter((item) => item.kostenstatus === 'Gelb').length,
-      gruen: faelle.filter((item) => item.kostenstatus === 'Grün').length,
+      rot: faelleLocal.filter((item) => item.kostenstatus === 'Rot').length,
+      gelb: faelleLocal.filter((item) => item.kostenstatus === 'Gelb').length,
+      gruen: faelleLocal.filter((item) => item.kostenstatus === 'Grün').length,
     }),
-    [],
+    [faelleLocal],
   );
+
+  const defaultFall: Fall = {
+    id: '',
+    bezug: '',
+    alter: 0,
+    wohnort: '-',
+    risiko: 'Stabil',
+    kostenstatus: 'Grün',
+    jahreskosten: 0,
+    prioritaet: 1,
+    status: '',
+    zustimmung: 0,
+    massnahmen: [],
+    risikofaktoren: [],
+    kostenverlauf: [0, 0, 0, 0, 0, 0],
+    empfehlung: '',
+    letzteAktualisierung: '',
+    verantwortliche: '',
+    traeger: '',
+    historie: [],
+    intervention: { phase: '', status: '', letzteMassnahme: '', prognose: '' },
+    eskalationsindex: 0,
+  };
+
+  const currentFall = selectedFall ?? faelleLocal[0] ?? defaultFall;
 
   return (
     <main className="min-h-screen px-6 py-8 text-slate-100 sm:px-8 lg:px-12">
@@ -168,12 +228,12 @@ export default function DashboardPage() {
               </div>
               <div className="rounded-3xl border border-slate-800/90 bg-slate-950/80 px-5 py-4 text-right">
                 <p className="text-sm text-slate-400">Reporting Monat</p>
-                <p className="mt-2 text-3xl font-semibold text-cyan-300">{reportData.monat}</p>
+                <p className="mt-2 text-3xl font-semibold text-cyan-300">{reportLocal.monat}</p>
               </div>
             </div>
 
             <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {reportData.kpis.map((item) => (
+              {(reportLocal.kpis as any[]).map((item: any) => (
                 <MetricTile key={item.label} label={item.label} value={item.value} delta={item.delta} tone={item.tone as 'good' | 'neutral' | 'alert'} />
               ))}
               <MetricTile label="Simulationspuls" value={`${simulationLoad} Fälle`} delta={`Einsparung € ${simulationEinsparung.toLocaleString('de-DE')}`} tone={simulationLoad > 28 ? 'alert' : simulationLoad > 18 ? 'neutral' : 'good'} />
@@ -278,9 +338,9 @@ export default function DashboardPage() {
                 </div>
                 <div className="rounded-3xl bg-slate-900/80 px-4 py-3 text-sm text-slate-300">Strategisch verwertbar</div>
               </div>
-              <p className="text-slate-300">{reportData.executiveSummary.overview}</p>
+              <p className="text-slate-300">{reportLocal.executiveSummary.overview}</p>
               <div className="grid gap-4 sm:grid-cols-3">
-                {reportData.executiveSummary.bullets.map((item) => (
+                {(reportLocal.executiveSummary.bullets as any[]).map((item: any) => (
                   <div key={item} className="rounded-3xl border border-slate-800/90 bg-slate-950/80 p-4 text-sm text-slate-300">{item}</div>
                 ))}
               </div>
@@ -288,7 +348,7 @@ export default function DashboardPage() {
             <div className="rounded-3xl border border-slate-800/90 bg-slate-900/80 p-6">
               <p className="text-sm uppercase tracking-[0.3em] text-slate-400">Politische Steuerungsebene</p>
               <div className="mt-5 space-y-4">
-                {reportData.policyActions.map((item) => (
+                {(reportLocal.policyActions as any[]).map((item: any) => (
                   <div key={item.initiative} className="rounded-3xl bg-slate-950/90 p-4">
                     <p className="text-sm text-slate-300 font-semibold">{item.initiative}</p>
                     <p className="mt-1 text-xs uppercase tracking-[0.18em] text-slate-500">{item.status}</p>
@@ -335,7 +395,7 @@ export default function DashboardPage() {
                 <h2 className="mt-2 text-xl font-semibold text-slate-100">Haushalt im Fokus</h2>
               </div>
               <div className="mt-6 space-y-4">
-                {reportData.budgetWarnungen.map((warnung) => (
+                {(reportLocal.budgetWarnungen as any[]).map((warnung: any) => (
                   <div key={warnung.title} className="rounded-3xl border border-slate-800/90 bg-slate-950/80 p-4">
                     <div className="flex items-center justify-between gap-3">
                       <p className="font-semibold text-slate-100">{warnung.title}</p>
@@ -357,7 +417,7 @@ export default function DashboardPage() {
                 <p className="text-slate-400">Aktuelle Simulation zeigt das Einnahme- und Ausgabenbild bei operativer Steuerung.</p>
                 <div className="flex items-center justify-between text-slate-100">
                   <span>Haushaltsnutzen</span>
-                  <span className="font-semibold">€ {reportData.einsparpotential.toLocaleString('de-DE')}</span>
+                  <span className="font-semibold">€ {reportLocal.einsparpotential.toLocaleString('de-DE')}</span>
                 </div>
                 <div className="h-2 w-full rounded-full bg-slate-800">
                   <div className="h-full w-3/4 rounded-full bg-cyan-500" />
@@ -395,7 +455,7 @@ export default function DashboardPage() {
                     {filteredFaelle.slice(0, 20).map((fall) => (
                       <tr
                         key={fall.id}
-                        className={`cursor-pointer border-t border-slate-800/80 transition hover:bg-slate-900/80 ${selectedFall.id === fall.id ? 'bg-slate-900/80 ring-1 ring-cyan-500/30' : ''}`}
+                        className={`cursor-pointer border-t border-slate-800/80 transition hover:bg-slate-900/80 ${selectedFall?.id === fall.id ? 'bg-slate-900/80 ring-1 ring-cyan-500/30' : ''}`}
                         onClick={() => setSelectedFall(fall)}
                       >
                         <td className="px-4 py-4 font-medium text-slate-100">{fall.id}</td>
@@ -421,10 +481,10 @@ export default function DashboardPage() {
             <div className="section-card">
               <div>
                 <p className="text-sm uppercase tracking-[0.3em] text-slate-400">Einzelfallakte</p>
-                <h2 className="mt-2 text-2xl font-semibold text-slate-100">{selectedFall.bezug}</h2>
-                <p className="mt-2 text-slate-400">Fall-ID: {selectedFall.id}</p>
+                <h2 className="mt-2 text-2xl font-semibold text-slate-100">{currentFall.bezug}</h2>
+                <p className="mt-2 text-slate-400">Fall-ID: {currentFall.id}</p>
               </div>
-              {selectedFall.id === 'HZE-118' && (
+              {currentFall.id === 'HZE-118' && (
                 <div className="mt-4 rounded-3xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-100 shadow-[0_0_30px_rgba(248,113,113,0.12)]">
                   <p className="font-semibold text-red-200">Akute Eskalation</p>
                   <p className="mt-2 leading-6">Stationäre Unterbringung droht. Schulabsenz &gt; 21 Tage, Maßnahmeabbruch erkannt, Budgetüberschreitung Nordcluster.</p>
@@ -434,39 +494,39 @@ export default function DashboardPage() {
                 <div className="grid gap-3">
                   <div className="flex items-center justify-between text-sm text-slate-400">
                     <span>Bezirk</span>
-                    <span className="font-semibold text-slate-100">{selectedFall.wohnort}</span>
+                    <span className="font-semibold text-slate-100">{currentFall.wohnort}</span>
                   </div>
                   <div className="flex items-center justify-between text-sm text-slate-400">
                     <span>Alter</span>
-                    <span className="font-semibold text-slate-100">{selectedFall.alter}</span>
+                    <span className="font-semibold text-slate-100">{currentFall.alter}</span>
                   </div>
                   <div className="flex items-center justify-between text-sm text-slate-400">
                     <span>Träger</span>
-                    <span className="font-semibold text-slate-100">{selectedFall.traeger}</span>
+                    <span className="font-semibold text-slate-100">{currentFall.traeger}</span>
                   </div>
                   <div className="flex items-center justify-between text-sm text-slate-400">
                     <span>Risikostatus</span>
-                    <Badge label={selectedFall.risiko} style={risikofarbe[selectedFall.risiko]} />
+                    <Badge label={currentFall.risiko} style={risikofarbe[currentFall.risiko]} />
                   </div>
                   <div className="flex items-center justify-between text-sm text-slate-400">
                     <span>Kostenstatus</span>
-                    <Badge label={selectedFall.kostenstatus} style={kostenfarbe[selectedFall.kostenstatus]} />
+                    <Badge label={currentFall.kostenstatus} style={kostenfarbe[currentFall.kostenstatus]} />
                   </div>
                   <div className="flex items-center justify-between text-sm text-slate-400">
                     <span>Monatskosten</span>
-                    <span className="font-semibold text-slate-100">€ {Math.round(selectedFall.kostenverlauf[selectedFall.kostenverlauf.length - 1]).toLocaleString('de-DE')}</span>
+                    <span className="font-semibold text-slate-100">€ {Math.round(currentFall.kostenverlauf[currentFall.kostenverlauf.length - 1]).toLocaleString('de-DE')}</span>
                   </div>
                   <div className="flex items-center justify-between text-sm text-slate-400">
                     <span>Jahreskosten</span>
-                    <span className="font-semibold text-slate-100">€ {selectedFall.jahreskosten.toLocaleString('de-DE')}</span>
+                    <span className="font-semibold text-slate-100">€ {currentFall.jahreskosten.toLocaleString('de-DE')}</span>
                   </div>
                   <div className="flex items-center justify-between text-sm text-slate-400">
                     <span>Letzte Aktualisierung</span>
-                    <span>{selectedFall.letzteAktualisierung}</span>
+                    <span>{currentFall.letzteAktualisierung}</span>
                   </div>
                   <div className="flex items-center justify-between text-sm text-slate-400">
                     <span>Verantwortliche</span>
-                    <span>{selectedFall.verantwortliche}</span>
+                    <span>{currentFall.verantwortliche}</span>
                   </div>
                 </div>
               </div>
@@ -474,8 +534,8 @@ export default function DashboardPage() {
               <div className="section-card">
                 <p className="text-sm uppercase tracking-[0.3em] text-slate-400">Monatskosten</p>
                 <div className="mt-4 flex items-end gap-2 h-32">
-                  {selectedFall.kostenverlauf.map((wert, index) => {
-                    const max = Math.max(...selectedFall.kostenverlauf);
+                  {currentFall.kostenverlauf.map((wert, index) => {
+                    const max = Math.max(...currentFall.kostenverlauf);
                     return (
                       <div key={index} className="relative flex-1 rounded-full bg-slate-900/90 transition-all duration-300 hover:bg-cyan-500/70" style={{ height: `${(wert / max) * 100}%` }}>
                         <span className="absolute -top-5 left-1/2 -translate-x-1/2 text-[10px] text-slate-400">M{index + 1}</span>
@@ -484,7 +544,7 @@ export default function DashboardPage() {
                   })}
                 </div>
                 <div className="mt-3 grid grid-cols-3 gap-3 text-xs text-slate-400">
-                  {selectedFall.kostenverlauf.map((wert, index) => (
+                  {currentFall.kostenverlauf.map((wert, index) => (
                     <div key={`label-${index}`} className="rounded-3xl bg-slate-950/80 p-2 text-center">{wert}€</div>
                   ))}
                 </div>
@@ -494,7 +554,7 @@ export default function DashboardPage() {
               <div className="section-card">
                 <p className="text-sm uppercase tracking-[0.3em] text-slate-400">Risikofaktoren</p>
                 <div className="mt-4 space-y-2">
-                  {selectedFall.risikofaktoren.map((faktor) => (
+                  {currentFall.risikofaktoren.map((faktor) => (
                     <div key={faktor} className="rounded-3xl border border-slate-800/90 bg-slate-950/80 px-4 py-3 text-sm text-slate-300">{faktor}</div>
                   ))}
                 </div>
@@ -504,14 +564,14 @@ export default function DashboardPage() {
                 <p className="text-sm uppercase tracking-[0.3em] text-slate-400">ASCEND Empfehlung</p>
                 <div className="mt-4 rounded-3xl border border-cyan-500/20 bg-slate-950/80 p-4 text-sm text-slate-300 shadow-[0_0_30px_rgba(22,211,255,0.05)]">
                   <p className="font-semibold text-slate-100">Empfehlung zur nächsten Maßnahme</p>
-                  <p className="mt-3 leading-6">{selectedFall.empfehlung}</p>
+                  <p className="mt-3 leading-6">{currentFall.empfehlung}</p>
                 </div>
               </div>
 
               <div className="section-card">
                 <p className="text-sm uppercase tracking-[0.3em] text-slate-400">Maßnahmenstatus</p>
                 <div className="mt-4 space-y-2">
-                  {selectedFall.massnahmen.map((massnahme) => (
+                  {currentFall.massnahmen.map((massnahme) => (
                     <div key={massnahme} className="rounded-3xl border border-slate-800/90 bg-slate-950/80 px-4 py-3 text-sm text-slate-300 transition duration-300 hover:border-cyan-500/40 hover:bg-slate-900/80">{massnahme}</div>
                   ))}
                 </div>
@@ -520,10 +580,10 @@ export default function DashboardPage() {
               <div className="section-card">
                 <p className="text-sm uppercase tracking-[0.3em] text-slate-400">Interventionsstatus</p>
                 <div className="mt-5 rounded-3xl border border-slate-800/90 bg-slate-950/80 p-5">
-                  <p className="text-sm text-slate-300">Phase: <span className="font-semibold text-slate-100">{selectedFall.intervention.phase}</span></p>
-                  <p className="mt-3 text-lg font-semibold text-slate-100">{selectedFall.intervention.status}</p>
-                  <p className="mt-4 text-sm text-slate-400">Letzte Maßnahme: {selectedFall.intervention.letzteMassnahme}</p>
-                  <p className="mt-2 text-sm text-slate-400">Prognose: {selectedFall.intervention.prognose}</p>
+                  <p className="text-sm text-slate-300">Phase: <span className="font-semibold text-slate-100">{currentFall.intervention.phase}</span></p>
+                  <p className="mt-3 text-lg font-semibold text-slate-100">{currentFall.intervention.status}</p>
+                  <p className="mt-4 text-sm text-slate-400">Letzte Maßnahme: {currentFall.intervention.letzteMassnahme}</p>
+                  <p className="mt-2 text-sm text-slate-400">Prognose: {currentFall.intervention.prognose}</p>
                   <div className="mt-5 h-2 w-full rounded-full bg-slate-800">
                     <div className="h-full w-3/4 rounded-full bg-cyan-500" />
                   </div>
@@ -533,8 +593,8 @@ export default function DashboardPage() {
               <div className="section-card">
                 <p className="text-sm uppercase tracking-[0.3em] text-slate-400">Fallhistorie</p>
                 <div className="mt-5 space-y-4">
-                  {selectedFall.historie.map((item) => (
-                    <div key={`${selectedFall.id}-${item.datum}-${item.bereich}`} className="rounded-3xl border border-slate-800/90 bg-slate-950/80 p-4">
+                  {currentFall.historie.map((item) => (
+                    <div key={`${currentFall.id}-${item.datum}-${item.bereich}`} className="rounded-3xl border border-slate-800/90 bg-slate-950/80 p-4">
                       <div className="flex items-center justify-between text-xs uppercase tracking-[0.2em] text-slate-500">
                         <span>{item.datum}</span>
                         <span>{item.bereich}</span>

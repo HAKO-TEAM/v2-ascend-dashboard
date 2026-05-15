@@ -129,93 +129,98 @@ function getEmpfehlung(index: number) {
   return options[index % options.length];
 }
 
-export const faelle: Fall[] = Array.from({ length: 250 }, (_, index) => {
-  const risk = getRiskByIndex(index);
-  const kosten = getStatusByRisk(risk);
-  const jahreskosten = Math.round(18000 + (index % 12) * 1200 + (risk === 'Kritisch' ? 9200 : risk === 'Hoch' ? 5600 : 2600));
-  return {
-    id: `HZE-${index + 1}`,
-    bezug: `Fall ${index + 1}`,
-    alter: 7 + (index % 11),
-    wohnort: wohnorte[index % wohnorte.length],
-    risiko: risk,
-    kostenstatus: kosten,
-    jahreskosten,
-    prioritaet: (index % 5) + 1,
-    status: statuses[index % statuses.length],
-    zustimmung: 65 + (index % 31),
-    massnahmen: getRandomMassnahmen(index),
-    risikofaktoren: getRiskFactors(index),
-    kostenverlauf: getKostenverlauf(index, jahreskosten),
-    empfehlung: getEmpfehlung(index),
-    letzteAktualisierung: new Date(Date.now() - (index % 30) * 86400000).toLocaleDateString('de-DE'),
-    verantwortliche: verantwortliche[index % verantwortliche.length],
-    traeger: traegerListe[index % traegerListe.length],
-    historie: getFallHistorie(index),
-    intervention: getIntervention(index),
-    eskalationsindex: index % 5,
-  };
-});
+const DEFAULT_MOCK_SIZE = Number(process.env.MOCK_SIZE ?? 60);
 
-export const reportData = {
-  monat: 'Mai 2026',
-  budget: 1560000,
-  einsparpotential: 128000,
-  fallzahl: faelle.length,
-  kritischeFaelle: faelle.filter((fall) => fall.risiko === 'Kritisch').length,
-  hoheFaelle: faelle.filter((fall) => fall.risiko === 'Hoch').length,
-  stabileFaelle: faelle.filter((fall) => fall.risiko === 'Stabil').length,
-  kpis: [
-    { label: 'Aktive Hochrisiko-Fälle', value: '250', delta: '+6 %', tone: 'neutral' },
-    { label: 'Budgetauslastung', value: '92 %', delta: '-3 %', tone: 'good' },
-    { label: 'Eskalationsdruck', value: '18 Fälle', delta: '+2', tone: 'alert' },
-    { label: 'Interventions-Deckung', value: '84 %', delta: '+5 %', tone: 'good' },
-    { label: 'Politische Steuerung', value: 'Priorität 1', delta: '', tone: 'neutral' },
-    { label: 'Haushaltswirkung', value: '€ 128 k', delta: '+12 %', tone: 'good' },
-  ],
-  budgetWarnungen: [
-    { title: 'Budget 2. Quartal', level: 'Hoch', detail: '4,8 % über Plan', impact: 'Dringende Nachsteuerung in Trägernetz Süd' },
-    { title: 'Personalkosten', level: 'Mittel', detail: '7 % Steigerung durch Zusatzdienstleistungen', impact: 'Einsparungspotenzial bei Diensten prüfen' },
-    { title: 'Investitionsrückstand', level: 'Niedrig', detail: 'Geplante IT-Unterstützung verzögert', impact: 'Politische Freigabe bis Juni erforderlich' },
-  ],
-  eskalationsfeed: [
-    { fallId: 'HZE-12', typ: 'Dringende Verlegung', zeit: 'vor 45 Min', status: 'Kritisch', beschreibung: 'Schulbegleitung kann kurzfristig nicht gesichert werden.' },
-    { fallId: 'HZE-87', typ: 'Haushaltsanpassung', zeit: 'vor 1 Std', status: 'Hoch', beschreibung: 'Kostensteigerung durch zusätzliche Heimunterbringung.' },
-    { fallId: 'HZE-21', typ: 'Stakeholder-Meeting', zeit: 'vor 2 Std', status: 'Mittel', beschreibung: 'Abstimmung mit Träger und Schulamt geplant.' },
-    { fallId: 'HZE-194', typ: 'Kooperation', zeit: 'gestern', status: 'Stabil', beschreibung: 'Interventionspfad mit Partnernetz erweitert.' },
-  ],
-  traegerPerformance: [
-    { traeger: 'Jugendhilfe Nord', score: 88, risiko: 'Niedrig', aussage: 'Stabile Umsetzung, guter Informationsfluss' },
-    { traeger: 'Sozialdienst Mitte', score: 78, risiko: 'Mittel', aussage: 'Budgetsteuerung optimieren' },
-    { traeger: 'Trägernetz Süd', score: 72, risiko: 'Hoch', aussage: 'Intensivere Eskalationssteuerung erforderlich' },
-    { traeger: 'Koordination Ost', score: 81, risiko: 'Mittel', aussage: 'Gute Vernetzung, Kapazität prüfen' },
-  ],
-  monatsvergleich: [
-    { monat: 'Jan', budget: 1120000, faelle: 198 },
-    { monat: 'Feb', budget: 1180000, faelle: 205 },
-    { monat: 'Mär', budget: 1240000, faelle: 217 },
-    { monat: 'Apr', budget: 1320000, faelle: 229 },
-    { monat: 'Mai', budget: 1560000, faelle: 250 },
-  ],
-  policyActions: [
-    { initiative: 'Frühe Unterstützungsstufen', status: 'In Vorbereitung', ziel: 'Reduktion Hochrisiko-Fälle um 8 %' },
-    { initiative: 'Budget-Glättung', status: 'Beschlossen', ziel: 'Kontinuierliche Steuerung der Kostenlinie' },
-    { initiative: 'Trägerperformance-Dashboard', status: 'Pilot', ziel: 'Transparenz für Steuerungskompass' },
-  ],
-  executiveSummary: {
-    headline: 'Steuerungsplattform für kommunale Hochrisiko-Fälle',
-    overview: 'Das ASCEND System unterstützt die operative Lageführung, priorisiert Eskalationsfälle und ermöglicht politische Steuerung über Budget- und Maßnahmendaten.',
-    bullets: [
-      '250 simulierte HzE-Fälle mit Priorität und Haushaltseffekt',
-      'Budgetwarnungen auf Quartalsebene und operative Eskalationsfeed',
-      'Trägerleistung mit Risiko-Score und Maßnahmencoverage',
+function generateFaelle(size: number): Fall[] {
+  return Array.from({ length: size }, (_, index) => {
+    const risk = getRiskByIndex(index);
+    const kosten = getStatusByRisk(risk);
+    const jahreskosten = Math.round(18000 + (index % 12) * 1200 + (risk === 'Kritisch' ? 9200 : risk === 'Hoch' ? 5600 : 2600));
+    return {
+      id: `HZE-${index + 1}`,
+      bezug: `Fall ${index + 1}`,
+      alter: 7 + (index % 11),
+      wohnort: wohnorte[index % wohnorte.length],
+      risiko: risk,
+      kostenstatus: kosten,
+      jahreskosten,
+      prioritaet: (index % 5) + 1,
+      status: statuses[index % statuses.length],
+      zustimmung: 65 + (index % 31),
+      massnahmen: getRandomMassnahmen(index),
+      risikofaktoren: getRiskFactors(index),
+      kostenverlauf: getKostenverlauf(index, jahreskosten),
+      empfehlung: getEmpfehlung(index),
+      letzteAktualisierung: new Date(Date.now() - (index % 30) * 86400000).toLocaleDateString('de-DE'),
+      verantwortliche: verantwortliche[index % verantwortliche.length],
+      traeger: traegerListe[index % traegerListe.length],
+      historie: getFallHistorie(index),
+      intervention: getIntervention(index),
+      eskalationsindex: index % 5,
+    } as Fall;
+  });
+}
+
+export function getData(size: number = DEFAULT_MOCK_SIZE) {
+  const faelle = generateFaelle(size);
+  const reportData = {
+    monat: 'Mai 2026',
+    budget: 1560000,
+    einsparpotential: 128000,
+    fallzahl: faelle.length,
+    kritischeFaelle: faelle.filter((fall) => fall.risiko === 'Kritisch').length,
+    hoheFaelle: faelle.filter((fall) => fall.risiko === 'Hoch').length,
+    stabileFaelle: faelle.filter((fall) => fall.risiko === 'Stabil').length,
+    kpis: [
+      { label: 'Aktive Hochrisiko-Fälle', value: String(faelle.length), delta: '+6 %', tone: 'neutral' },
+      { label: 'Budgetauslastung', value: '92 %', delta: '-3 %', tone: 'good' },
+      { label: 'Eskalationsdruck', value: '18 Fälle', delta: '+2', tone: 'alert' },
+      { label: 'Interventions-Deckung', value: '84 %', delta: '+5 %', tone: 'good' },
+      { label: 'Politische Steuerung', value: 'Priorität 1', delta: '', tone: 'neutral' },
+      { label: 'Haushaltswirkung', value: '€ 128 k', delta: '+12 %', tone: 'good' },
     ],
-  },
-  charts: {
-    kostenTrend: [120, 132, 115, 148, 138, 150],
-    fallTrend: [18, 24, 21, 25, 28, 30],
-    budgetTrend: [88, 92, 94, 96, 92, 90],
-    eskalationsTrend: [16, 18, 20, 19, 17, 18],
-    stabilisationsTrend: [56, 58, 60, 62, 64, 66],
-  },
-};
+    budgetWarnungen: [
+      { title: 'Budget 2. Quartal', level: 'Hoch', detail: '4,8 % über Plan', impact: 'Dringende Nachsteuerung in Trägernetz Süd' },
+      { title: 'Personalkosten', level: 'Mittel', detail: '7 % Steigerung durch Zusatzdienstleistungen', impact: 'Einsparungspotenzial bei Diensten prüfen' },
+      { title: 'Investitionsrückstand', level: 'Niedrig', detail: 'Geplante IT-Unterstützung verzögert', impact: 'Politische Freigabe bis Juni erforderlich' },
+    ],
+    eskalationsfeed: [
+      { fallId: 'HZE-12', typ: 'Dringende Verlegung', zeit: 'vor 45 Min', status: 'Kritisch', beschreibung: 'Schulbegleitung kann kurzfristig nicht gesichert werden.' },
+      { fallId: 'HZE-87', typ: 'Haushaltsanpassung', zeit: 'vor 1 Std', status: 'Hoch', beschreibung: 'Kostensteigerung durch zusätzliche Heimunterbringung.' },
+      { fallId: 'HZE-21', typ: 'Stakeholder-Meeting', zeit: 'vor 2 Std', status: 'Mittel', beschreibung: 'Abstimmung mit Träger und Schulamt geplant.' },
+      { fallId: 'HZE-194', typ: 'Kooperation', zeit: 'gestern', status: 'Stabil', beschreibung: 'Interventionspfad mit Partnernetz erweitert.' },
+    ],
+    traegerPerformance: [
+      { traeger: 'Jugendhilfe Nord', score: 88, risiko: 'Niedrig', aussage: 'Stabile Umsetzung, guter Informationsfluss' },
+      { traeger: 'Sozialdienst Mitte', score: 78, risiko: 'Mittel', aussage: 'Budgetsteuerung optimieren' },
+      { traeger: 'Trägernetz Süd', score: 72, risiko: 'Hoch', aussage: 'Intensivere Eskalationssteuerung erforderlich' },
+      { traeger: 'Koordination Ost', score: 81, risiko: 'Mittel', aussage: 'Gute Vernetzung, Kapazität prüfen' },
+    ],
+    monatsvergleich: [
+      { monat: 'Jan', budget: 1120000, faelle: Math.max(1, Math.round(faelle.length * 0.8)) },
+      { monat: 'Feb', budget: 1180000, faelle: Math.max(1, Math.round(faelle.length * 0.82)) },
+      { monat: 'Mär', budget: 1240000, faelle: Math.max(1, Math.round(faelle.length * 0.86)) },
+      { monat: 'Apr', budget: 1320000, faelle: Math.max(1, Math.round(faelle.length * 0.9)) },
+      { monat: 'Mai', budget: 1560000, faelle: faelle.length },
+    ],
+    policyActions: [
+      { initiative: 'Frühe Unterstützungsstufen', status: 'In Vorbereitung', ziel: 'Reduktion Hochrisiko-Fälle um 8 %' },
+      { initiative: 'Budget-Glättung', status: 'Beschlossen', ziel: 'Kontinuierliche Steuerung der Kostenlinie' },
+      { initiative: 'Trägerperformance-Dashboard', status: 'Pilot', ziel: 'Transparenz für Steuerungskompass' },
+    ],
+    executiveSummary: {
+      headline: 'Steuerungsplattform für kommunale Hochrisiko-Fälle',
+      overview: 'Das ASCEND System unterstützt die operative Lageführung, priorisiert Eskalationsfälle und ermöglicht politische Steuerung über Budget- und Maßnahmendaten.',
+      bullets: ['Simulierte Fälle mit Priorität und Haushaltseffekt', 'Budgetwarnungen und Eskalationsfeed', 'Trägerleistung mit Risiko-Score'],
+    },
+    charts: {
+      kostenTrend: [120, 132, 115, 148, 138, 150],
+      fallTrend: [18, 24, 21, 25, 28, 30],
+      budgetTrend: [88, 92, 94, 96, 92, 90],
+      eskalationsTrend: [16, 18, 20, 19, 17, 18],
+      stabilisationsTrend: [56, 58, 60, 62, 64, 66],
+    },
+  } as const;
+
+  return { faelle, reportData };
+}
