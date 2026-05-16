@@ -1,609 +1,473 @@
-"use client";
+'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import type { Fall } from '../lib/mockData';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { defaultCases, type CaseData, type Interventionsstatus, type Ampelstatus } from '../lib/cases';
 
-const risikofarbe: Record<string, string> = {
-  Kritisch: 'bg-red-500/10 text-red-300',
-  Hoch: 'bg-amber-500/10 text-amber-300',
-  Mittel: 'bg-sky-500/10 text-sky-300',
-  Beobachtung: 'bg-blue-500/10 text-blue-300',
-  Stabil: 'bg-emerald-500/10 text-emerald-300',
+const STORAGE_KEY = 'ascend-dashboard-hze-cases-v1';
+const riskFilterOptions = ['Alle', 'grün', 'gelb', 'rot'] as const;
+const interventionOptions: Interventionsstatus[] = ['Monitoring', 'Frühintervention', 'ASCEND prüfen', 'Akutintervention'];
+
+const ampelStyles: Record<Ampelstatus, string> = {
+  grün: 'bg-emerald-500/10 text-emerald-300',
+  gelb: 'bg-amber-500/10 text-amber-300',
+  rot: 'bg-red-500/10 text-red-300',
 };
 
-const kostenfarbe: Record<string, string> = {
-  Rot: 'bg-red-500/10 text-red-300',
-  Gelb: 'bg-amber-500/10 text-amber-300',
-  Grün: 'bg-emerald-500/10 text-emerald-300',
+const statusStyles: Record<string, string> = {
+  'Kritischer Interventionsbedarf': 'bg-red-500/10 text-red-300',
+  'Operatives Monitoring': 'bg-amber-500/10 text-amber-300',
+  Stabilisiert: 'bg-emerald-500/10 text-emerald-300',
 };
 
-const budgetLevelStyles: Record<string, string> = {
-  Hoch: 'bg-red-500/10 text-red-300',
-  Mittel: 'bg-amber-500/10 text-amber-300',
-  Niedrig: 'bg-emerald-500/10 text-emerald-300',
-};
+function formatCurrency(value: number) {
+  const safeValue = Number.isFinite(value) ? value : 0;
+  return `€ ${safeValue.toLocaleString('de-DE')}`;
+}
 
-const riskFilterOptions = ['Alle', 'Kritisch', 'Hoch', 'Mittel', 'Beobachtung', 'Stabil'] as const;
-type RiskFilter = (typeof riskFilterOptions)[number];
+function formatPercent(value: number) {
+  const safeValue = Number.isFinite(value) ? value : 0;
+  return `${Math.min(100, Math.max(0, safeValue))}%`;
+}
+
+function caseMonthlyCost(fall: CaseData | null | undefined): number {
+  const kostenstellen = fall?.kostenstellen;
+  if (!kostenstellen) return 0;
+  if (Array.isArray(kostenstellen)) {
+    return kostenstellen.reduce<number>((sum, position) => sum + Number(position?.amount || 0), 0);
+  }
+
+  const values = Object.values(kostenstellen as Record<string, unknown>);
+  return values.reduce<number>((sum, value) => sum + Number(value || 0), 0);
+}
+
+function getFallAmpel(fall: CaseData | null | undefined): Ampelstatus | undefined {
+  return (fall as any)?.ampel ?? fall?.ampelstatus;
+}
 
 function Badge({ label, style }: { label: string; style: string }) {
-  return (
-    <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${style}`}>
-      {label}
-    </span>
-  );
+  return <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${style}`}>{label}</span>;
 }
 
-function MetricTile({ label, value, delta, tone }: { label: string; value: string; delta: string; tone: 'good' | 'neutral' | 'alert' }) {
-  const toneClass = tone === 'good' ? 'text-emerald-300' : tone === 'alert' ? 'text-red-300' : 'text-slate-100';
+function MetricCard({ label, value, description }: { label: string; value: string; description: string }) {
   return (
-    <div className="rounded-3xl border border-slate-800/90 bg-slate-950/80 p-5 shadow-sm transition hover:border-cyan-500/30">
+    <div className="rounded-3xl border border-slate-800/90 bg-slate-950/80 p-5 shadow-sm">
       <p className="text-xs uppercase tracking-[0.26em] text-slate-500">{label}</p>
-      <div className="mt-3 flex items-end justify-between gap-4">
-        <p className={`text-3xl font-semibold ${toneClass}`}>{value}</p>
-        <p className="text-sm text-slate-400">{delta}</p>
-      </div>
-    </div>
-  );
-}
-
-function TrendChart({ values, label }: { values: number[]; label: string }) {
-  const max = Math.max(...values, 1);
-  return (
-    <div className="space-y-4 rounded-3xl border border-slate-800/90 bg-slate-950/80 p-5">
-      <div className="flex items-center justify-between text-sm text-slate-400">
-        <span>{label}</span>
-        <span>letzte 6 Monate</span>
-      </div>
-      <div className="flex items-end gap-3 h-44">
-        {values.map((value, index) => (
-          <div key={index} className="relative flex-1">
-            <div className="absolute -bottom-6 left-0 right-0 text-center text-[10px] uppercase text-slate-500">M{index + 1}</div>
-            <div
-              className="mx-auto h-full w-full rounded-3xl bg-gradient-to-t from-slate-700 via-slate-600 to-cyan-500"
-              style={{ height: `${(value / max) * 100}%` }}
-              title={`${value}`}
-            />
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function ProgressBar({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between text-sm text-slate-300">
-        <span>{label}</span>
-        <span>{value}%</span>
-      </div>
-      <div className="h-2 w-full rounded-full bg-slate-800">
-        <div className="h-full rounded-full bg-cyan-500" style={{ width: `${value}%` }} />
-      </div>
+      <p className="mt-4 text-3xl font-semibold text-slate-100">{value}</p>
+      <p className="mt-2 text-sm text-slate-400">{description}</p>
     </div>
   );
 }
 
 export default function DashboardPage() {
-  const [data, setData] = useState<{ faelle: Fall[]; reportData: any } | null>(null);
-  const reportLocal = data?.reportData ?? {
-    monat: '',
-    einsparpotential: 0,
-    budget: 0,
-    executiveSummary: { overview: '', bullets: [] },
-    policyActions: [],
-    budgetWarnungen: [],
-    kpis: [],
-    eskalationsfeed: [],
-  } as const;
-
-  const [selectedFall, setSelectedFall] = useState<Fall | null>(null);
-  const [riskFilter, setRiskFilter] = useState<RiskFilter>('Alle');
-  const [simulationLoad, setSimulationLoad] = useState(18);
+  const [faelle, setFaelle] = useState<CaseData[]>(defaultCases);
+  const [selectedId, setSelectedId] = useState(defaultCases[0]?.id ?? '');
+  const [riskFilter, setRiskFilter] = useState<(typeof riskFilterOptions)[number]>('Alle');
+  const [initialized, setInitialized] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saved'>('idle');
 
   useEffect(() => {
-    let mounted = true;
-    fetch('/api/mockData')
-      .then((r) => r.json())
-      .then((payload) => {
-        if (!mounted) return;
-        // payload shape: { faelle, reportData }
-        setData(payload);
-        const faelle = Array.isArray(payload?.faelle) ? payload.faelle : [];
-        const first = faelle.find((f: Fall) => f.id === 'HZE-118') ?? faelle[0] ?? null;
-        setSelectedFall(first);
-      })
-      .catch(() => {
-        if (!mounted) return;
-      });
-    return () => {
-      mounted = false;
-    };
+    if (typeof window === 'undefined') {
+      setInitialized(true);
+      return;
+    }
+
+    const stored = window.localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored) as CaseData[];
+        if (Array.isArray(parsed) && parsed.length === defaultCases.length) {
+          setFaelle(parsed);
+          setSelectedId(parsed[0]?.id ?? defaultCases[0]?.id ?? '');
+          setInitialized(true);
+          return;
+        }
+      } catch {
+        // ignore invalid local storage
+      }
+    }
+
+    setFaelle(defaultCases);
+    setSelectedId(defaultCases[0]?.id ?? '');
+    setInitialized(true);
   }, []);
 
-  const faelleLocal = data?.faelle ?? [];
-  const filteredFaelle = useMemo(() => {
-    if (riskFilter === 'Alle') return faelleLocal;
-    return faelleLocal.filter((fall) => fall.risiko === riskFilter);
-  }, [riskFilter, faelleLocal]);
-
-  useEffect(() => {
-    if (!selectedFall && filteredFaelle.length) setSelectedFall(filteredFaelle[0]);
-    if (selectedFall && !filteredFaelle.some((fall) => fall.id === selectedFall.id)) {
-      setSelectedFall(filteredFaelle[0] ?? null);
-    }
-  }, [filteredFaelle, selectedFall]);
-
-  const simulationEinsparung = (reportLocal.einsparpotential ?? 0) + simulationLoad * 950;
-  const simulationBudgetShadow = (reportLocal.budget ?? 0) - simulationEinsparung;
-  const simulationStabilized = Math.min(92, 56 + simulationLoad);
-
-  const feedEvents = useMemo(() => {
-    const simulatedEvents = [
-      {
-        id: 'sim-1',
-        fallId: 'HZE-118',
-        typ: 'Akute Eskalation',
-        zeit: 'vor 3 Min',
-        status: 'Kritisch',
-        beschreibung: 'Schulabsenz > 21 Tage erkannt. Intensive Betreuung prüfen.',
-      },
-      {
-        id: 'sim-2',
-        fallId: 'HZE-118',
-        typ: 'Maßnahmeabbruch',
-        zeit: 'vor 10 Min',
-        status: 'Hoch',
-        beschreibung: 'Stationäre Maßnahme abgebrochen. Nachsteuerung erforderlich.',
-      },
-      {
-        id: 'sim-3',
-        fallId: 'Nordcluster',
-        typ: 'Budgetüberschreitung',
-        zeit: 'vor 18 Min',
-        status: 'Hoch',
-        beschreibung: 'Nordcluster meldet Budgetüberschreitung bei stationären Leistungen.',
-      },
-      {
-        id: 'sim-4',
-        fallId: 'HZE-118',
-        typ: 'Stationäre Eskalation',
-        zeit: 'vor 22 Min',
-        status: 'Kritisch',
-        beschreibung: 'Akute Eskalation mit drohender stationärer Unterbringung.',
-      },
-    ];
-
-    const remote = Array.isArray(reportLocal.eskalationsfeed) ? (reportLocal.eskalationsfeed as any[]) : [];
-    const combined = [...simulatedEvents, ...remote.map((item: any, index: number) => ({ ...item, id: `feed-${index}` }))];
-    if (riskFilter === 'Alle') return combined;
-    return combined.filter((item) => item.status === riskFilter);
-  }, [riskFilter]);
-
-  const kostenAmpel = useMemo(
-    () => ({
-      rot: faelleLocal.filter((item) => item.kostenstatus === 'Rot').length,
-      gelb: faelleLocal.filter((item) => item.kostenstatus === 'Gelb').length,
-      gruen: faelleLocal.filter((item) => item.kostenstatus === 'Grün').length,
-    }),
-    [faelleLocal],
-  );
-
-  const defaultFall: Fall = {
-    id: '',
-    bezug: '',
-    alter: 0,
-    wohnort: '-',
-    risiko: 'Stabil',
-    kostenstatus: 'Grün',
-    jahreskosten: 0,
-    prioritaet: 1,
-    status: '',
-    zustimmung: 0,
-    massnahmen: [],
-    risikofaktoren: [],
-    kostenverlauf: [0, 0, 0, 0, 0, 0],
-    empfehlung: '',
-    letzteAktualisierung: '',
-    verantwortliche: '',
-    traeger: '',
-    historie: [],
-    intervention: { phase: '', status: '', letzteMassnahme: '', prognose: '' },
-    eskalationsindex: 0,
+  const saveChanges = () => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(faelle));
+    setSaveStatus('saved');
+    window.setTimeout(() => setSaveStatus('idle'), 2000);
   };
 
-  const currentFall = selectedFall ?? faelleLocal[0] ?? defaultFall;
+  const selectedFall = useMemo(() => faelle.find((fall) => fall.id === selectedId) ?? null, [faelle, selectedId]);
+
+  const filteredFaelle = useMemo(() => {
+    if (riskFilter === 'Alle') return faelle;
+    return faelle.filter((fall) => getFallAmpel(fall) === riskFilter);
+  }, [faelle, riskFilter]);
+
+  const summary = useMemo(() => {
+    const totalMonthly = faelle.reduce((sum, fall) => sum + caseMonthlyCost(fall), 0);
+    const totalAnnual = faelle.reduce((sum, fall) => sum + caseMonthlyCost(fall) * 12, 0);
+    const counts = faelle.reduce(
+      (acc, fall) => {
+        const ampel = getFallAmpel(fall);
+        return {
+          grün: acc.grün + (ampel === 'grün' ? 1 : 0),
+          gelb: acc.gelb + (ampel === 'gelb' ? 1 : 0),
+          rot: acc.rot + (ampel === 'rot' ? 1 : 0),
+        };
+      },
+      { grün: 0, gelb: 0, rot: 0 },
+    );
+    const averageEscalation = faelle.length ? Math.round(faelle.reduce((sum, fall) => sum + fall.eskalationsrisiko, 0) / faelle.length) : 0;
+    const interventionCounts = interventionOptions.reduce(
+      (acc, key) => ({ ...acc, [key]: faelle.filter((fall) => fall.interventionsstatus === key).length }),
+      {} as Record<Interventionsstatus, number>,
+    );
+    const totalSavingsPotential = faelle.reduce((sum, fall) => sum + fall.erwarteteKostensenkung, 0);
+    const averageCostPerCase = faelle.length ? Math.round(totalMonthly / faelle.length) : 0;
+    const acuteEscalations = faelle.filter((fall) => getFallAmpel(fall) === 'rot' && fall.eskalationsrisiko >= 75).length;
+    const interventionQuote = faelle.length
+      ? Math.round((faelle.filter((fall) => fall.interventionsstatus !== 'Monitoring').length / faelle.length) * 100)
+      : 0;
+
+    const districtCostMap = faelle.reduce((acc, fall) => {
+      acc[fall.stadtteil] = (acc[fall.stadtteil] ?? 0) + caseMonthlyCost(fall) * 12;
+      return acc;
+    }, {} as Record<string, number>);
+
+    const costByAmpel = (['grün', 'gelb', 'rot'] as Ampelstatus[]).map((ampel) => ({
+      name: ampel,
+      monat: faelle.filter((fall) => getFallAmpel(fall) === ampel).reduce((sum, fall) => sum + caseMonthlyCost(fall), 0),
+      count: faelle.filter((fall) => getFallAmpel(fall) === ampel).length,
+    }));
+
+    const districtCosts = Object.entries(districtCostMap).map(([stadtteil, value]) => ({ stadtteil, value }));
+
+    const trendText = averageEscalation > 60 ? 'Eskalationsdruck bleibt hoch, Steuerungsbedarf steigt.' : averageEscalation > 45 ? 'Frühintervention wirkt, Lage bleibt achtsam.' : 'Stabilisierung erkennbar, Monitoring fortsetzen.';
+
+    return {
+      totalMonthly,
+      totalAnnual,
+      counts,
+      averageEscalation,
+      interventionCounts,
+      totalSavingsPotential,
+      averageCostPerCase,
+      acuteEscalations,
+      interventionQuote,
+      costByAmpel,
+      districtCosts,
+      trendText,
+    };
+  }, [faelle]);
+
+  const updateKostenposition = (label: string, amountInput: number) => {
+    const amount = Number.isFinite(amountInput) ? amountInput : Number(amountInput) || 0;
+    setFaelle((previous) =>
+      previous.map((fall) => {
+        if (fall.id !== selectedId) return fall;
+        const kostenstellen = {
+          ...fall.kostenstellen,
+          [label]: Math.max(0, amount),
+        };
+        const updatedFall = {
+          ...fall,
+          kostenstellen,
+        } as CaseData;
+        const monatKostenGesamt = caseMonthlyCost(updatedFall);
+        return {
+          ...updatedFall,
+          monatKostenGesamt,
+          jahresKostenGesamt: monatKostenGesamt * 12,
+        } as CaseData;
+      }),
+    );
+  };
+
+  const resetData = () => {
+    setFaelle(defaultCases);
+    setSelectedId(defaultCases[0]?.id ?? '');
+    if (typeof window !== 'undefined') {
+      window.localStorage.removeItem(STORAGE_KEY);
+    }
+    setSaveStatus('idle');
+  };
+
+  if (!initialized) {
+    return (
+      <main className="min-h-screen px-6 py-8 text-slate-100 sm:px-8 lg:px-12">
+        <div className="mx-auto max-w-7xl rounded-3xl border border-slate-800/90 bg-slate-950/80 p-10 text-center text-slate-300">Lade synthetische Falldaten …</div>
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen px-6 py-8 text-slate-100 sm:px-8 lg:px-12">
       <div className="mx-auto max-w-8xl space-y-8">
-        <section className="grid gap-6 xl:grid-cols-[1.5fr_1fr]">
-          <div className="section-card">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <section className="space-y-6">
+          <div className="rounded-[2rem] border border-slate-800/90 bg-slate-950/80 p-6 shadow-glow">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
-                <p className="text-sm uppercase tracking-[0.3em] text-cyan-300/80">ASCEND Steuerungsplattform</p>
-                <h1 className="mt-3 text-3xl font-semibold text-slate-100">Professionelles Kommunales Hochrisiko-Dashboard</h1>
-                <p className="mt-2 max-w-2xl text-slate-400">Realistische Operationsübersicht für Jugendamt, Verwaltungsspitze, Stadtrat und Partner. Alle Inhalte sind synthetisch und zeigen eine hochwertige Steuerungsplattform.</p>
+                <p className="text-sm uppercase tracking-[0.3em] text-cyan-300/80">ASCEND Pilot Dashboard</p>
+                <h1 className="mt-3 text-3xl font-semibold text-slate-100">Kommunales Hochrisiko-Steuerungssystem</h1>
+                <p className="mt-2 max-w-2xl text-slate-400">Live-KPI-Steuerung für 20 synthetische HzE-Hochrisikofälle mit operative Steuerungsdaten und validierter Kostenlogik.</p>
               </div>
-              <div className="rounded-3xl border border-slate-800/90 bg-slate-950/80 px-5 py-4 text-right">
-                <p className="text-sm text-slate-400">Reporting Monat</p>
-                <p className="mt-2 text-3xl font-semibold text-cyan-300">{reportLocal.monat}</p>
-              </div>
-            </div>
-
-            <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {(reportLocal.kpis as any[]).map((item: any) => (
-                <MetricTile key={item.label} label={item.label} value={item.value} delta={item.delta} tone={item.tone as 'good' | 'neutral' | 'alert'} />
-              ))}
-              <MetricTile label="Simulationspuls" value={`${simulationLoad} Fälle`} delta={`Einsparung € ${simulationEinsparung.toLocaleString('de-DE')}`} tone={simulationLoad > 28 ? 'alert' : simulationLoad > 18 ? 'neutral' : 'good'} />
+              <div className="rounded-3xl border border-slate-800/90 bg-slate-900/80 px-4 py-3 text-sm text-slate-300">Enterprise-Design für operative Lageführung.</div>
             </div>
           </div>
 
-          <div className="section-card flex flex-col gap-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm uppercase tracking-[0.3em] text-slate-400">Risikostatus</p>
-                <h2 className="mt-2 text-xl font-semibold text-slate-100">Risiko- und Kostenampel</h2>
-              </div>
-              <div className="rounded-3xl bg-slate-900/80 px-4 py-3 text-sm text-slate-300">Operative Lageführung</div>
-            </div>
+          <div className="grid gap-4 xl:grid-cols-3">
+            <MetricCard label="Gesamtbudget" value={formatCurrency(Math.round(summary.totalAnnual * 1.04))} description="Planmäßige Jahressteuerung" />
+            <MetricCard label="Einsparpotenzial" value={formatCurrency(summary.totalSavingsPotential)} description="Prognose aus Fallinterventionen" />
+            <MetricCard label="Fälle mit akuter Eskalation" value={`${summary.acuteEscalations}`} description="Höchste Priorität für Steuerung" />
+          </div>
 
-            <div className="grid gap-4 sm:grid-cols-3">
-              <div className="rounded-3xl border border-slate-800/90 bg-slate-900/80 p-5 transition duration-300 hover:-translate-y-1 hover:border-cyan-500/40">
-                <p className="text-sm uppercase text-slate-400">Kosten Rot</p>
-                <p className="mt-3 text-3xl font-semibold text-red-300">{kostenAmpel.rot}</p>
-                <p className="mt-2 text-sm text-slate-500">Intensive Steuerung erforderlich</p>
-              </div>
-              <div className="rounded-3xl border border-slate-800/90 bg-slate-900/80 p-5 transition duration-300 hover:-translate-y-1 hover:border-amber-500/40">
-                <p className="text-sm uppercase text-slate-400">Kosten Gelb</p>
-                <p className="mt-3 text-3xl font-semibold text-amber-300">{kostenAmpel.gelb}</p>
-                <p className="mt-2 text-sm text-slate-500">Monitoring und Budgetprüfung</p>
-              </div>
-              <div className="rounded-3xl border border-slate-800/90 bg-slate-900/80 p-5 transition duration-300 hover:-translate-y-1 hover:border-emerald-500/40">
-                <p className="text-sm uppercase text-slate-400">Kosten Grün</p>
-                <p className="mt-3 text-3xl font-semibold text-emerald-300">{kostenAmpel.gruen}</p>
-                <p className="mt-2 text-sm text-slate-500">Stabile Steuerung aktiv</p>
-              </div>
-            </div>
+          <div className="grid gap-4 xl:grid-cols-3">
+            <MetricCard label="Durchschnittliche Kosten pro Fall" value={formatCurrency(summary.averageCostPerCase)} description="Monatlicher Mittelwert" />
+            <MetricCard label="Trendindikator" value={summary.trendText} description="Operative Lagebewertung" />
+            <MetricCard label="Interventionsquote" value={`${summary.interventionQuote}%`} description="Fallzahl mit Steuerungseinsatz" />
+          </div>
 
-            <div className="rounded-3xl border border-slate-800/90 bg-slate-900/80 p-5 transition duration-300 hover:-translate-y-1">
+          <div className="grid gap-6 xl:grid-cols-[1.4fr_0.9fr]">
+            <div className="rounded-[2rem] border border-slate-800/90 bg-slate-950/80 p-6 shadow-glow">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <p className="text-sm uppercase tracking-[0.3em] text-slate-400">Interaktive Risikoampel</p>
-                  <p className="mt-2 text-slate-300">Live filtert die Tabelle nach tatsächlichem Risikostatus. Klick auf eine Zeile öffnet rechts die Detailakte.</p>
+                  <p className="text-sm uppercase tracking-[0.26em] text-slate-400">Kostenverteilung</p>
+                  <h2 className="mt-2 text-2xl font-semibold text-slate-100">Kostentreiber nach Stadtteil</h2>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  {riskFilterOptions.map((option) => (
-                    <button
-                      key={option}
-                      onClick={() => setRiskFilter(option)}
-                      className={`rounded-full px-4 py-2 text-sm font-semibold transition duration-300 ${
-                        riskFilter === option
-                          ? 'bg-cyan-500 text-slate-950 shadow-cyan-500/30'
-                          : 'bg-slate-950/80 text-slate-300 hover:bg-slate-900/90'
-                      }`}
+              </div>
+              <div className="mt-6 h-[320px] rounded-[2rem] bg-slate-900/80 p-4">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={summary.districtCosts} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                    <CartesianGrid stroke="#334155" vertical={false} />
+                    <XAxis dataKey="stadtteil" stroke="#94a3b8" tick={{ fontSize: 12 }} />
+                    <YAxis stroke="#94a3b8" tickFormatter={(value) => `€${(value / 1000).toFixed(0)}k`} />
+                    <Tooltip formatter={(value) => formatCurrency(Number(value ?? 0))} contentStyle={{ background: '#0f172a', borderColor: '#334155' }} />
+                    <Bar dataKey="value" fill="#22d3ee" radius={[12, 12, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            <div className="rounded-[2rem] border border-slate-800/90 bg-slate-950/80 p-6 shadow-glow">
+              <p className="text-sm uppercase tracking-[0.26em] text-slate-400">Fall-Analyse</p>
+              <h2 className="mt-2 text-2xl font-semibold text-slate-100">Kosten nach Ampelfarbe</h2>
+              <div className="mt-6 text-sm text-slate-300 space-y-4">
+                {summary.costByAmpel.map((item) => (
+                  <div key={item.name} className="rounded-3xl bg-slate-900/80 p-4">
+                    <div className="flex items-center justify-between text-slate-400"><span className="font-semibold text-slate-100 uppercase tracking-[0.12em]">{item.name}</span><span>{item.count} Fälle</span></div>
+                    <div className="mt-3 h-3 overflow-hidden rounded-full bg-slate-800">
+                      <div className={`h-full rounded-full ${item.name === 'rot' ? 'bg-red-500' : item.name === 'gelb' ? 'bg-amber-500' : 'bg-emerald-500'}`} style={{ width: `${Math.min(100, (item.monat / Math.max(1, summary.totalMonthly)) * 100)}%` }} />
+                    </div>
+                    <div className="mt-3 flex items-center justify-between text-slate-300"><span>Monatskosten</span><span>{formatCurrency(item.monat)}</span></div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="grid gap-6 xl:grid-cols-[1.5fr_1fr]">
+          <div className="rounded-[2rem] border border-slate-800/90 bg-slate-950/80 p-6 shadow-glow">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm uppercase tracking-[0.26em] text-slate-400">Fallübersicht</p>
+                <h2 className="mt-2 text-2xl font-semibold text-slate-100">Ampelstatus und Interventionsbedarf</h2>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {riskFilterOptions.map((option) => (
+                  <button
+                    key={option}
+                    type="button"
+                    onClick={() => setRiskFilter(option)}
+                    className={`rounded-full px-4 py-2 text-sm font-semibold transition ${riskFilter === option ? 'bg-cyan-500 text-slate-950 shadow-cyan-500/30' : 'bg-slate-950/80 text-slate-300 hover:bg-slate-900/90'}`}
+                  >
+                    {option}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-6 overflow-hidden rounded-[2rem] border border-slate-800/90 bg-slate-900/80">
+              <table className="min-w-full border-separate border-spacing-0 text-left text-sm">
+                <thead className="bg-slate-950/90 text-slate-400">
+                  <tr>
+                    <th className="px-4 py-4">Fall-ID</th>
+                    <th className="px-4 py-4">Alter</th>
+                    <th className="px-4 py-4">Stadtteil</th>
+                    <th className="px-4 py-4">Ampel</th>
+                    <th className="px-4 py-4">Status</th>
+                    <th className="px-4 py-4">Monatskosten</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredFaelle.map((fall) => (
+                    <tr
+                      key={fall.id}
+                      onClick={() => setSelectedId(fall.id)}
+                      className={`cursor-pointer border-t border-slate-800/80 transition hover:bg-slate-900/80 ${selectedId === fall.id ? 'bg-slate-900/80 ring-1 ring-cyan-500/30' : ''}`}
                     >
-                      {option}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="mt-5 rounded-3xl border border-slate-800/90 bg-slate-950/80 p-4">
-                <p className="text-sm text-slate-400">Gefilterte Fälle</p>
-                <p className="mt-2 text-3xl font-semibold text-slate-100">{filteredFaelle.length}</p>
-              </div>
-            </div>
-
-            <div className="rounded-3xl border border-slate-800/90 bg-slate-900/80 p-5 transition duration-300 hover:-translate-y-1">
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-sm uppercase tracking-[0.3em] text-slate-400">Simulationsmodus</p>
-                  <h3 className="mt-2 text-xl font-semibold text-slate-100">Übernommene Hochrisiko-Fälle</h3>
-                </div>
-                <span className="rounded-3xl bg-slate-950/80 px-3 py-2 text-sm text-slate-300">Live Sektor</span>
-              </div>
-              <div className="mt-5">
-                <div className="flex items-center justify-between text-sm text-slate-400">
-                  <span>Anzahl Fälle</span>
-                  <span className="font-semibold text-slate-100">{simulationLoad}</span>
-                </div>
-                <input
-                  type="range"
-                  min="0"
-                  max="40"
-                  value={simulationLoad}
-                  onChange={(event) => setSimulationLoad(Number(event.target.value))}
-                  className="mt-4 w-full accent-cyan-400"
-                />
-                <p className="mt-4 text-sm text-slate-300">Haushaltswirkung: € {simulationEinsparung.toLocaleString('de-DE')} / Verfügbar: € {Math.max(0, simulationBudgetShadow).toLocaleString('de-DE')}</p>
-                <p className="mt-2 text-sm text-slate-300">Stabilisierte Fälle: {simulationStabilized} %</p>
-              </div>
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <ProgressBar label="Stabilität im Fallbestand" value={simulationStabilized} />
-              <ProgressBar label="Prioritätensetzung erfüllt" value={82} />
-            </div>
-          </div>
-        </section>
-
-        <section className="space-y-6">
-          <div className="section-card grid gap-6 xl:grid-cols-[1.5fr_0.8fr]">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-sm uppercase tracking-[0.3em] text-slate-400">Executive Summary</p>
-                  <h2 className="mt-2 text-2xl font-semibold text-slate-100">Strategische Lagezusammenfassung</h2>
-                </div>
-                <div className="rounded-3xl bg-slate-900/80 px-4 py-3 text-sm text-slate-300">Strategisch verwertbar</div>
-              </div>
-              <p className="text-slate-300">{reportLocal.executiveSummary.overview}</p>
-              <div className="grid gap-4 sm:grid-cols-3">
-                {(reportLocal.executiveSummary.bullets as any[]).map((item: any) => (
-                  <div key={item} className="rounded-3xl border border-slate-800/90 bg-slate-950/80 p-4 text-sm text-slate-300">{item}</div>
-                ))}
-              </div>
-            </div>
-            <div className="rounded-3xl border border-slate-800/90 bg-slate-900/80 p-6">
-              <p className="text-sm uppercase tracking-[0.3em] text-slate-400">Politische Steuerungsebene</p>
-              <div className="mt-5 space-y-4">
-                {(reportLocal.policyActions as any[]).map((item: any) => (
-                  <div key={item.initiative} className="rounded-3xl bg-slate-950/90 p-4">
-                    <p className="text-sm text-slate-300 font-semibold">{item.initiative}</p>
-                    <p className="mt-1 text-xs uppercase tracking-[0.18em] text-slate-500">{item.status}</p>
-                    <p className="mt-2 text-sm text-slate-400">Ziel: {item.ziel}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="grid gap-6 xl:grid-cols-[1.4fr_0.8fr]">
-          <div className="section-card space-y-6">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-sm uppercase tracking-[0.3em] text-slate-400">Eskalationsfeed</p>
-                <h2 className="mt-2 text-xl font-semibold text-slate-100">Aktuelle operative Lage</h2>
-              </div>
-              <p className="text-sm text-slate-400">Laufende Prioritäten und Eskalationen.</p>
-            </div>
-            <div className="space-y-3">
-              {feedEvents.map((item) => (
-                <div key={item.id} className="rounded-3xl border border-slate-800/90 bg-slate-950/80 p-5 transition duration-300 hover:-translate-y-1 hover:border-cyan-500/40">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="font-semibold text-slate-100">{item.fallId} · {item.typ}</p>
-                      <p className="mt-1 text-sm text-slate-400">{item.beschreibung}</p>
-                    </div>
-                    <Badge label={item.status} style={item.status === 'Kritisch' ? 'bg-red-500/10 text-red-300' : item.status === 'Hoch' ? 'bg-amber-500/10 text-amber-300' : 'bg-emerald-500/10 text-emerald-300'} />
-                  </div>
-                  <div className="mt-3 flex items-center justify-between text-sm text-slate-500">
-                    <span>{item.zeit}</span>
-                    <span className="italic">Resilienz-Index: {7 + (item.zeit.length % 5)}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="space-y-6">
-            <div className="section-card">
-              <div>
-                <p className="text-sm uppercase tracking-[0.3em] text-slate-400">Budgetwarnungen</p>
-                <h2 className="mt-2 text-xl font-semibold text-slate-100">Haushalt im Fokus</h2>
-              </div>
-              <div className="mt-6 space-y-4">
-                {(reportLocal.budgetWarnungen as any[]).map((warnung: any) => (
-                  <div key={warnung.title} className="rounded-3xl border border-slate-800/90 bg-slate-950/80 p-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="font-semibold text-slate-100">{warnung.title}</p>
-                      <Badge label={warnung.level} style={budgetLevelStyles[warnung.level]} />
-                    </div>
-                    <p className="mt-2 text-sm text-slate-400">{warnung.detail}</p>
-                    <p className="mt-2 text-sm text-slate-500">{warnung.impact}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="section-card">
-              <div>
-                <p className="text-sm uppercase tracking-[0.3em] text-slate-400">Simulierte Haushaltswirkung</p>
-                <h2 className="mt-2 text-xl font-semibold text-slate-100">Haushaltsentlastung</h2>
-              </div>
-              <div className="mt-6 space-y-4 rounded-3xl border border-slate-800/90 bg-slate-950/80 p-5">
-                <p className="text-slate-400">Aktuelle Simulation zeigt das Einnahme- und Ausgabenbild bei operativer Steuerung.</p>
-                <div className="flex items-center justify-between text-slate-100">
-                  <span>Haushaltsnutzen</span>
-                  <span className="font-semibold">€ {reportLocal.einsparpotential.toLocaleString('de-DE')}</span>
-                </div>
-                <div className="h-2 w-full rounded-full bg-slate-800">
-                  <div className="h-full w-3/4 rounded-full bg-cyan-500" />
-                </div>
-                <p className="text-sm text-slate-500">Prognose zeigt wirksame Steuerung bei verbesserter Trägerkooperation.</p>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="grid gap-6 xl:grid-cols-[1.4fr_0.8fr]">
-          <div className="section-card">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <p className="text-sm uppercase tracking-[0.3em] text-slate-400">Fallübersicht</p>
-                <h2 className="mt-2 text-xl font-semibold text-slate-100">Kritische HzE-Fälle</h2>
-                <p className="mt-1 text-sm text-slate-400">Zeige 20 Fälle von {filteredFaelle.length} in der operativen Liste.</p>
-              </div>
-              <div className="rounded-full bg-slate-900/80 px-4 py-2 text-sm text-slate-300">Operative Steuerung</div>
-            </div>
-
-            <div className="mt-6 overflow-hidden rounded-3xl border border-slate-800/90 bg-slate-950/80">
-              <div className="max-h-[46rem] overflow-y-auto">
-                <table className="min-w-full border-separate border-spacing-0 text-left text-sm">
-                  <thead className="bg-slate-900/90 text-slate-400">
-                    <tr>
-                      <th className="px-4 py-4">Fall-ID</th>
-                      <th className="px-4 py-4">Wohnort</th>
-                      <th className="px-4 py-4">Risiko</th>
-                      <th className="px-4 py-4">Kosten</th>
-                      <th className="px-4 py-4">Zustand</th>
+                      <td className="px-4 py-4 font-medium text-slate-100">{fall.id}</td>
+                      <td className="px-4 py-4 text-slate-300">{fall.alter}</td>
+                      <td className="px-4 py-4 text-slate-300">{fall.stadtteil}</td>
+                      <td className="px-4 py-4"><Badge label={fall.ampelstatus} style={ampelStyles[fall.ampelstatus]} /></td>
+                      <td className="px-4 py-4"><Badge label={fall.status} style={statusStyles[fall.status]} /></td>
+                      <td className="px-4 py-4 text-slate-300">{formatCurrency(caseMonthlyCost(fall))}</td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {filteredFaelle.slice(0, 20).map((fall) => (
-                      <tr
-                        key={fall.id}
-                        className={`cursor-pointer border-t border-slate-800/80 transition hover:bg-slate-900/80 ${selectedFall?.id === fall.id ? 'bg-slate-900/80 ring-1 ring-cyan-500/30' : ''}`}
-                        onClick={() => setSelectedFall(fall)}
-                      >
-                        <td className="px-4 py-4 font-medium text-slate-100">{fall.id}</td>
-                        <td className="px-4 py-4 text-slate-300">{fall.wohnort}</td>
-                        <td className="px-4 py-4">
-                          <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${risikofarbe[fall.risiko]}`}>
-                            {fall.risiko}
-                          </span>
-                        </td>
-                        <td className="px-4 py-4">
-                          <Badge label={fall.kostenstatus} style={kostenfarbe[fall.kostenstatus]} />
-                        </td>
-                        <td className="px-4 py-4 text-slate-300">{fall.status}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
 
           <aside className="space-y-6">
-            <div className="section-card">
-              <div>
-                <p className="text-sm uppercase tracking-[0.3em] text-slate-400">Einzelfallakte</p>
-                <h2 className="mt-2 text-2xl font-semibold text-slate-100">{currentFall.bezug}</h2>
-                <p className="mt-2 text-slate-400">Fall-ID: {currentFall.id}</p>
-              </div>
-              {currentFall.id === 'HZE-118' && (
-                <div className="mt-4 rounded-3xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-100 shadow-[0_0_30px_rgba(248,113,113,0.12)]">
-                  <p className="font-semibold text-red-200">Akute Eskalation</p>
-                  <p className="mt-2 leading-6">Stationäre Unterbringung droht. Schulabsenz &gt; 21 Tage, Maßnahmeabbruch erkannt, Budgetüberschreitung Nordcluster.</p>
+            <div className="rounded-[2rem] border border-slate-800/90 bg-slate-950/80 p-6 shadow-glow">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div>
+                  <p className="text-sm uppercase tracking-[0.26em] text-slate-400">Fallakte</p>
+                  <h2 className="mt-2 text-2xl font-semibold text-slate-100">{selectedFall?.pseudonym}</h2>
+                  <p className="mt-2 text-slate-400">Fall-ID: {selectedFall?.id}</p>
                 </div>
-              )}
-              <div className="mt-6 space-y-4 rounded-3xl border border-slate-800/90 bg-slate-900/80 p-5">
-                <div className="grid gap-3">
-                  <div className="flex items-center justify-between text-sm text-slate-400">
-                    <span>Bezirk</span>
-                    <span className="font-semibold text-slate-100">{currentFall.wohnort}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm text-slate-400">
-                    <span>Alter</span>
-                    <span className="font-semibold text-slate-100">{currentFall.alter}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm text-slate-400">
-                    <span>Träger</span>
-                    <span className="font-semibold text-slate-100">{currentFall.traeger}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm text-slate-400">
-                    <span>Risikostatus</span>
-                    <Badge label={currentFall.risiko} style={risikofarbe[currentFall.risiko]} />
-                  </div>
-                  <div className="flex items-center justify-between text-sm text-slate-400">
-                    <span>Kostenstatus</span>
-                    <Badge label={currentFall.kostenstatus} style={kostenfarbe[currentFall.kostenstatus]} />
-                  </div>
-                  <div className="flex items-center justify-between text-sm text-slate-400">
-                    <span>Monatskosten</span>
-                    <span className="font-semibold text-slate-100">€ {Math.round(currentFall.kostenverlauf[currentFall.kostenverlauf.length - 1]).toLocaleString('de-DE')}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm text-slate-400">
-                    <span>Jahreskosten</span>
-                    <span className="font-semibold text-slate-100">€ {currentFall.jahreskosten.toLocaleString('de-DE')}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm text-slate-400">
-                    <span>Letzte Aktualisierung</span>
-                    <span>{currentFall.letzteAktualisierung}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm text-slate-400">
-                    <span>Verantwortliche</span>
-                    <span>{currentFall.verantwortliche}</span>
-                  </div>
+                <div className="flex flex-col items-start gap-3 sm:items-end">
+                  {selectedFall ? <Badge label={selectedFall.ampelstatus} style={ampelStyles[selectedFall.ampelstatus]} /> : null}
+                  <button
+                    type="button"
+                    onClick={saveChanges}
+                    className="rounded-full bg-cyan-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400"
+                  >
+                    Änderungen speichern
+                  </button>
+                  {saveStatus === 'saved' ? <span className="text-sm text-emerald-300">Gespeichert</span> : null}
                 </div>
               </div>
 
-              <div className="section-card">
-                <p className="text-sm uppercase tracking-[0.3em] text-slate-400">Monatskosten</p>
-                <div className="mt-4 flex items-end gap-2 h-32">
-                  {currentFall.kostenverlauf.map((wert, index) => {
-                    const max = Math.max(...currentFall.kostenverlauf);
-                    return (
-                      <div key={index} className="relative flex-1 rounded-full bg-slate-900/90 transition-all duration-300 hover:bg-cyan-500/70" style={{ height: `${(wert / max) * 100}%` }}>
-                        <span className="absolute -top-5 left-1/2 -translate-x-1/2 text-[10px] text-slate-400">M{index + 1}</span>
+              {selectedFall ? (
+                <div className="mt-6 grid gap-3 text-sm text-slate-300">
+                  <div className="grid gap-2 rounded-3xl bg-slate-900/80 p-4">
+                    <div className="flex items-center justify-between text-slate-400"><span>Pseudonym</span><span className="font-semibold text-slate-100">{selectedFall.pseudonym}</span></div>
+                    <div className="flex items-center justify-between text-slate-400"><span>Alter</span><span className="font-semibold text-slate-100">{selectedFall.alter}</span></div>
+                    <div className="flex items-center justify-between text-slate-400"><span>Geschlecht</span><span className="font-semibold text-slate-100 capitalize">{selectedFall.geschlecht}</span></div>
+                    <div className="flex items-center justify-between text-slate-400"><span>Stadtteil</span><span className="font-semibold text-slate-100">{selectedFall.stadtteil}</span></div>
+                    <div className="flex items-center justify-between text-slate-400"><span>Ampelstatus</span><Badge label={selectedFall.ampelstatus} style={ampelStyles[selectedFall.ampelstatus]} /></div>
+                    <div className="flex items-center justify-between text-slate-400"><span>Jahreskosten</span><span className="font-semibold text-slate-100">{formatCurrency(caseMonthlyCost(selectedFall) * 12)}</span></div>
+                    <div className="flex items-center justify-between text-slate-400"><span>Eskalationsrisiko</span><span className="font-semibold text-slate-100">{formatPercent(selectedFall.eskalationsrisiko)}</span></div>
+                    <div className="flex items-center justify-between text-slate-400"><span>Stabilisierungspotenzial</span><span className="font-semibold text-slate-100">{formatPercent(selectedFall.stabilisierungspotential)}</span></div>
+                    <div className="flex items-center justify-between text-slate-400"><span>Interventionsstatus</span><span className="font-semibold text-slate-100">{selectedFall.interventionsstatus}</span></div>
+                  </div>
+
+                  <div className="rounded-3xl bg-slate-900/80 p-4 text-sm text-slate-300">
+                    <p className="text-xs uppercase tracking-[0.24em] text-slate-500">ASCEND-Empfehlung</p>
+                    <p className="mt-2 text-slate-100">{selectedFall.ascendEmpfehlung}</p>
+                  </div>
+
+                  <div className="rounded-3xl bg-slate-900/80 p-4 text-sm text-slate-300">
+                    <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Maßnahmenvorschlag</p>
+                    <p className="mt-2 text-slate-100">{selectedFall.massnahmenvorschlag}</p>
+                  </div>
+
+                  <div className="rounded-3xl border border-slate-800/90 bg-slate-950/80 p-4 text-sm text-slate-300">
+                    <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Interventions-Evaluierung</p>
+                    <div className="mt-4 space-y-3">
+                      <div className="rounded-3xl bg-slate-900/80 p-4">
+                        <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Ampel-Begründung</p>
+                        <p className="mt-2 text-slate-100">{selectedFall.begruendung}</p>
                       </div>
-                    );
-                  })}
-                </div>
-                <div className="mt-3 grid grid-cols-3 gap-3 text-xs text-slate-400">
-                  {currentFall.kostenverlauf.map((wert, index) => (
-                    <div key={`label-${index}`} className="rounded-3xl bg-slate-950/80 p-2 text-center">{wert}€</div>
-                  ))}
-                </div>
-                <p className="mt-3 text-sm text-slate-400">Aktuelle Entwicklung zeigt operative Belastung und Steuerungsbedarf über sechs Monate.</p>
-              </div>
-
-              <div className="section-card">
-                <p className="text-sm uppercase tracking-[0.3em] text-slate-400">Risikofaktoren</p>
-                <div className="mt-4 space-y-2">
-                  {currentFall.risikofaktoren.map((faktor) => (
-                    <div key={faktor} className="rounded-3xl border border-slate-800/90 bg-slate-950/80 px-4 py-3 text-sm text-slate-300">{faktor}</div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="section-card">
-                <p className="text-sm uppercase tracking-[0.3em] text-slate-400">ASCEND Empfehlung</p>
-                <div className="mt-4 rounded-3xl border border-cyan-500/20 bg-slate-950/80 p-4 text-sm text-slate-300 shadow-[0_0_30px_rgba(22,211,255,0.05)]">
-                  <p className="font-semibold text-slate-100">Empfehlung zur nächsten Maßnahme</p>
-                  <p className="mt-3 leading-6">{currentFall.empfehlung}</p>
-                </div>
-              </div>
-
-              <div className="section-card">
-                <p className="text-sm uppercase tracking-[0.3em] text-slate-400">Maßnahmenstatus</p>
-                <div className="mt-4 space-y-2">
-                  {currentFall.massnahmen.map((massnahme) => (
-                    <div key={massnahme} className="rounded-3xl border border-slate-800/90 bg-slate-950/80 px-4 py-3 text-sm text-slate-300 transition duration-300 hover:border-cyan-500/40 hover:bg-slate-900/80">{massnahme}</div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="section-card">
-                <p className="text-sm uppercase tracking-[0.3em] text-slate-400">Interventionsstatus</p>
-                <div className="mt-5 rounded-3xl border border-slate-800/90 bg-slate-950/80 p-5">
-                  <p className="text-sm text-slate-300">Phase: <span className="font-semibold text-slate-100">{currentFall.intervention.phase}</span></p>
-                  <p className="mt-3 text-lg font-semibold text-slate-100">{currentFall.intervention.status}</p>
-                  <p className="mt-4 text-sm text-slate-400">Letzte Maßnahme: {currentFall.intervention.letzteMassnahme}</p>
-                  <p className="mt-2 text-sm text-slate-400">Prognose: {currentFall.intervention.prognose}</p>
-                  <div className="mt-5 h-2 w-full rounded-full bg-slate-800">
-                    <div className="h-full w-3/4 rounded-full bg-cyan-500" />
-                  </div>
-                </div>
-              </div>
-
-              <div className="section-card">
-                <p className="text-sm uppercase tracking-[0.3em] text-slate-400">Fallhistorie</p>
-                <div className="mt-5 space-y-4">
-                  {currentFall.historie.map((item) => (
-                    <div key={`${currentFall.id}-${item.datum}-${item.bereich}`} className="rounded-3xl border border-slate-800/90 bg-slate-950/80 p-4">
-                      <div className="flex items-center justify-between text-xs uppercase tracking-[0.2em] text-slate-500">
-                        <span>{item.datum}</span>
-                        <span>{item.bereich}</span>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="rounded-3xl bg-slate-900/80 p-4">
+                          <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Frist</p>
+                          <p className="mt-2 text-slate-100">{selectedFall.frist}</p>
+                        </div>
+                        <div className="rounded-3xl bg-slate-900/80 p-4">
+                          <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Nächste Maßnahme</p>
+                          <p className="mt-2 text-slate-100">{selectedFall.naechsteMassnahme}</p>
+                        </div>
                       </div>
-                      <p className="mt-3 text-sm text-slate-300">{item.beschreibung}</p>
-                      <p className="mt-2 text-sm text-slate-400">Status: {item.status}</p>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="rounded-3xl bg-slate-900/80 p-4">
+                          <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Erwartete Kostenwirkung</p>
+                          <p className="mt-2 text-slate-100">{selectedFall.erwarteteKostenwirkung}</p>
+                        </div>
+                        <div className="rounded-3xl bg-slate-900/80 p-4">
+                          <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Erwartete Risikoreduktion</p>
+                          <p className="mt-2 text-slate-100">{selectedFall.erwarteteRisikoreduktion}</p>
+                        </div>
+                      </div>
                     </div>
-                  ))}
+                  </div>
+
+                  <div className="rounded-3xl border border-slate-800/90 bg-slate-950/80 p-4 text-sm text-slate-300">
+                    <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Timeline</p>
+                    <div className="mt-4 space-y-3">
+                      <div className="rounded-3xl bg-slate-900/80 p-4">
+                        <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Letzte Eskalation</p>
+                        <p className="mt-2 text-slate-100">{selectedFall.letzteEskalation}</p>
+                      </div>
+                      <div className="rounded-3xl bg-slate-900/80 p-4">
+                        <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Letzte Maßnahme</p>
+                        <p className="mt-2 text-slate-100">{selectedFall.letzteMassnahme}</p>
+                      </div>
+                      <div className="rounded-3xl bg-slate-900/80 p-4">
+                        <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Nächster Prüftermin</p>
+                        <p className="mt-2 text-slate-100">{selectedFall.naechsterPrueftermin}</p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
+              ) : (
+                <div className="mt-6 text-slate-500">Kein Fall ausgewählt.</div>
+              )}
+            </div>
+
+            <div className="rounded-[2rem] border border-slate-800/90 bg-slate-950/80 p-6 shadow-glow">
+              <p className="text-sm uppercase tracking-[0.26em] text-slate-400">Kostenstellen</p>
+              <p className="mt-3 text-sm text-slate-400">Summe aller Kostenpositionen: {formatCurrency(caseMonthlyCost(selectedFall))}</p>
+              <div className="mt-5 space-y-4">
+                {Object.entries(selectedFall?.kostenstellen ?? {}).map(([label, value], index) => (
+                  <label key={label} className="grid gap-2 text-sm text-slate-300">
+                    <span className="font-semibold text-slate-100">{label}</span>
+                    <input
+                      type="number"
+                      min={0}
+                      step={50}
+                      value={Number(value) || 0}
+                      onChange={(event) => updateKostenposition(label, Number(event.target.value))}
+                      className="w-full rounded-3xl border border-slate-700/80 bg-slate-950/90 px-4 py-3 text-slate-100 outline-none transition focus:border-cyan-500"
+                    />
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-[2rem] border border-slate-800/90 bg-slate-950/80 p-6 shadow-glow">
+              <p className="text-sm uppercase tracking-[0.26em] text-slate-400">Kostenaggregation</p>
+              <div className="mt-5 space-y-4 text-sm text-slate-300">
+                <div className="flex items-center justify-between text-slate-400"><span>Monatskosten</span><span className="font-semibold text-slate-100">{formatCurrency(caseMonthlyCost(selectedFall))}</span></div>
+                <div className="flex items-center justify-between text-slate-400"><span>Jahreskosten</span><span className="font-semibold text-slate-100">{formatCurrency(caseMonthlyCost(selectedFall) * 12)}</span></div>
+                <div className="h-2 w-full overflow-hidden rounded-full bg-slate-800">
+                  <div className="h-full rounded-full bg-cyan-500" style={{ width: `${Math.min(100, ((caseMonthlyCost(selectedFall) / 40000) * 100))}%` }} />
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-[2rem] border border-slate-800/90 bg-slate-950/80 p-6 shadow-glow">
+              <div className="mt-3 grid gap-3">
+                <div className="flex items-center justify-between rounded-3xl bg-slate-900/80 px-4 py-3 text-sm text-slate-300"><span>Grün</span><span className="font-semibold text-slate-100">{summary.counts.grün}</span></div>
+                <div className="flex items-center justify-between rounded-3xl bg-slate-900/80 px-4 py-3 text-sm text-slate-300"><span>Gelb</span><span className="font-semibold text-slate-100">{summary.counts.gelb}</span></div>
+                <div className="flex items-center justify-between rounded-3xl bg-slate-900/80 px-4 py-3 text-sm text-slate-300"><span>Rot</span><span className="font-semibold text-slate-100">{summary.counts.rot}</span></div>
+              </div>
+            </div>
+
+            <div className="rounded-[2rem] border border-slate-800/90 bg-slate-950/80 p-6 shadow-glow">
+              <p className="text-sm uppercase tracking-[0.26em] text-slate-400">Interventionsstatus</p>
+              <div className="mt-6 space-y-3">
+                {Object.entries(summary.interventionCounts).map(([key, value]) => (
+                  <div key={key} className="flex items-center justify-between rounded-3xl bg-slate-900/80 px-4 py-3 text-sm text-slate-300">
+                    <span>{key}</span>
+                    <span className="font-semibold text-slate-100">{value}</span>
+                  </div>
+                ))}
               </div>
             </div>
           </aside>
