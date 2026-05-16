@@ -51,6 +51,49 @@ function getFallAmpel(fall: CaseData | null | undefined): Ampelstatus | undefine
   return (fall as any)?.ampel ?? fall?.ampelstatus;
 }
 
+function recalcCase(fall: CaseData): CaseData {
+  const kostenstellen = Array.isArray(fall.kostenstellen)
+    ? fall.kostenstellen.reduce((acc: Record<string, number>, pos: any) => {
+        acc[pos.label] = Number(pos.amount || 0);
+        return acc;
+      }, {} as Record<string, number>)
+    : { ...(fall.kostenstellen as Record<string, number>) };
+
+  const monatKostenGesamt = caseMonthlyCost({ ...fall, kostenstellen } as CaseData);
+  const jahresKostenGesamt = monatKostenGesamt * 12;
+
+  let eskalationsrisiko = 22;
+  if (monatKostenGesamt < 9000) {
+    eskalationsrisiko = 22;
+  } else if (monatKostenGesamt <= 17000) {
+    eskalationsrisiko = 30;
+  } else {
+    eskalationsrisiko = 66;
+  }
+
+  let ampelstatus: Ampelstatus = 'gelb';
+  if (monatKostenGesamt < 9000 && eskalationsrisiko < 30) {
+    ampelstatus = 'grün';
+  }
+  if (monatKostenGesamt > 17000 || eskalationsrisiko > 65) {
+    ampelstatus = 'rot';
+  }
+
+  const status = ampelstatus === 'grün' ? 'Stabilisiert' : ampelstatus === 'rot' ? 'Kritischer Interventionsbedarf' : 'Operatives Monitoring';
+  const interventionsstatus = ampelstatus === 'rot' ? 'Akutintervention' : 'Monitoring';
+
+  return {
+    ...fall,
+    kostenstellen,
+    monatKostenGesamt,
+    jahresKostenGesamt,
+    eskalationsrisiko,
+    ampelstatus,
+    status,
+    interventionsstatus,
+  };
+}
+
 function Badge({ label, style }: { label: string; style: string }) {
   return <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${style}`}>{label}</span>;
 }
@@ -189,12 +232,7 @@ export default function DashboardPage() {
           kostenstellen: ksObj as any,
         };
 
-        const monatKostenGesamt = caseMonthlyCost(updatedFall);
-        return {
-          ...updatedFall,
-          monatKostenGesamt,
-          jahresKostenGesamt: monatKostenGesamt * 12,
-        } as CaseData;
+        return recalcCase(updatedFall);
       }),
     );
   };
@@ -437,17 +475,34 @@ export default function DashboardPage() {
               <p className="text-sm uppercase tracking-[0.26em] text-slate-400">Kostenstellen</p>
               <p className="mt-3 text-sm text-slate-400">Summe aller Kostenpositionen: {formatCurrency(caseMonthlyCost(selectedFall))}</p>
               <div className="mt-5 space-y-4">
-                {Object.entries(selectedFall?.kostenstellen ?? {}).map(([label, value]) => (
-                  <label key={label} className="grid gap-2 text-sm text-slate-300">
-                    <span className="font-semibold text-slate-100">{label}</span>
-                    <input
-                      type="number"
-                      value={Number(value) || 0}
-                      onChange={(event) => updateKostenposition(label, event.target.value)}
-                      className="w-full rounded-3xl border border-slate-700/80 bg-slate-950/90 px-4 py-3 text-slate-100 outline-none transition focus:border-cyan-500"
-                    />
-                  </label>
-                ))}
+                {(() => {
+                  const ks = selectedFall?.kostenstellen;
+                  if (Array.isArray(ks)) {
+                    return ks.map((position: any) => (
+                      <label key={position.label} className="grid gap-2 text-sm text-slate-300">
+                        <span className="font-semibold text-slate-100">{position.label}</span>
+                        <input
+                          type="number"
+                          value={Number(position.amount) || 0}
+                          onChange={(event) => updateKostenposition(position.label, event.target.value)}
+                          className="w-full rounded-3xl border border-slate-700/80 bg-slate-950/90 px-4 py-3 text-slate-100 outline-none transition focus:border-cyan-500"
+                        />
+                      </label>
+                    ));
+                  }
+
+                  return Object.entries(selectedFall?.kostenstellen ?? {}).map(([label, value]) => (
+                    <label key={label} className="grid gap-2 text-sm text-slate-300">
+                      <span className="font-semibold text-slate-100">{label}</span>
+                      <input
+                        type="number"
+                        value={Number(value) || 0}
+                        onChange={(event) => updateKostenposition(label, event.target.value)}
+                        className="w-full rounded-3xl border border-slate-700/80 bg-slate-950/90 px-4 py-3 text-slate-100 outline-none transition focus:border-cyan-500"
+                      />
+                    </label>
+                  ));
+                })()}
               </div>
             </div>
 
