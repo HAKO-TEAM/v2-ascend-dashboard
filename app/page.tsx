@@ -62,25 +62,37 @@ function recalcCase(fall: CaseData): CaseData {
   const monatKostenGesamt = caseMonthlyCost({ ...fall, kostenstellen } as CaseData);
   const jahresKostenGesamt = monatKostenGesamt * 12;
 
-  let eskalationsrisiko = 22;
-  if (monatKostenGesamt < 9000) {
-    eskalationsrisiko = 22;
-  } else if (monatKostenGesamt <= 17000) {
-    eskalationsrisiko = 30;
-  } else {
-    eskalationsrisiko = 66;
-  }
-
+  // Determine ampel based on new cost thresholds: <= 5000 (grün), 5000-15000 (gelb), >15000 (rot)
   let ampelstatus: Ampelstatus = 'gelb';
-  if (monatKostenGesamt < 9000 && eskalationsrisiko < 30) {
+  if (monatKostenGesamt <= 5000) {
     ampelstatus = 'grün';
-  }
-  if (monatKostenGesamt > 17000 || eskalationsrisiko > 65) {
+  } else if (monatKostenGesamt > 15000) {
     ampelstatus = 'rot';
   }
 
-  const status = ampelstatus === 'grün' ? 'Stabilisiert' : ampelstatus === 'rot' ? 'Kritischer Interventionsbedarf' : 'Operatives Monitoring';
-  const interventionsstatus = ampelstatus === 'rot' ? 'Akutintervention' : 'Monitoring';
+  // Determine eskalationsrisiko based on ampel
+  let eskalationsrisiko = 30;
+  if (ampelstatus === 'grün') {
+    eskalationsrisiko = 10 + Math.floor(Math.random() * 20); // 10-29
+  } else if (ampelstatus === 'rot') {
+    eskalationsrisiko = 66 + Math.floor(Math.random() * 30); // 66-95
+  } else {
+    eskalationsrisiko = 30 + Math.floor(Math.random() * 36); // 30-65
+  }
+
+  // Status mapping
+  const statusMap: Record<Ampelstatus, string> = {
+    grün: 'STABILISIERT',
+    gelb: 'INSTABIL',
+    rot: 'KRITISCHER INTERVENTIONSBEDARF',
+  };
+
+  // Interventionsstatus mapping
+  const interventionMap: Record<Ampelstatus, Interventionsstatus> = {
+    grün: 'Monitoring',
+    gelb: 'Frühintervention',
+    rot: 'Akutintervention',
+  };
 
   return {
     ...fall,
@@ -89,8 +101,68 @@ function recalcCase(fall: CaseData): CaseData {
     jahresKostenGesamt,
     eskalationsrisiko,
     ampelstatus,
-    status,
-    interventionsstatus,
+    status: statusMap[ampelstatus],
+    interventionsstatus: interventionMap[ampelstatus],
+  };
+}
+
+function recalcDashboard(cases: CaseData[]) {
+  const totalMonthly = cases.reduce((sum, fall) => sum + caseMonthlyCost(fall), 0);
+  const totalAnnual = cases.reduce((sum, fall) => sum + caseMonthlyCost(fall) * 12, 0);
+
+  const counts = cases.reduce(
+    (acc, fall) => {
+      const ampel = fall.ampelstatus;
+      return {
+        grün: acc.grün + (ampel === 'grün' ? 1 : 0),
+        gelb: acc.gelb + (ampel === 'gelb' ? 1 : 0),
+        rot: acc.rot + (ampel === 'rot' ? 1 : 0),
+      };
+    },
+    { grün: 0, gelb: 0, rot: 0 },
+  );
+
+  const averageEscalation = cases.length ? Math.round(cases.reduce((sum, fall) => sum + fall.eskalationsrisiko, 0) / cases.length) : 0;
+
+  const interventionCounts = interventionOptions.reduce(
+    (acc, key) => ({ ...acc, [key]: cases.filter((fall) => fall.interventionsstatus === key).length }),
+    {} as Record<Interventionsstatus, number>,
+  );
+
+  const totalSavingsPotential = cases.reduce((sum, fall) => sum + fall.erwarteteKostensenkung, 0);
+  const averageCostPerCase = cases.length ? Math.round(totalMonthly / cases.length) : 0;
+  const acuteEscalations = cases.filter((fall) => fall.ampelstatus === 'rot' && fall.eskalationsrisiko >= 75).length;
+  const interventionQuote = cases.length
+    ? Math.round((cases.filter((fall) => fall.interventionsstatus !== 'Monitoring').length / cases.length) * 100)
+    : 0;
+
+  const districtCostMap = cases.reduce((acc, fall) => {
+    acc[fall.stadtteil] = (acc[fall.stadtteil] ?? 0) + caseMonthlyCost(fall) * 12;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const costByAmpel = (['grün', 'gelb', 'rot'] as Ampelstatus[]).map((ampel) => ({
+    name: ampel,
+    monat: cases.filter((fall) => fall.ampelstatus === ampel).reduce((sum, fall) => sum + caseMonthlyCost(fall), 0),
+    count: cases.filter((fall) => fall.ampelstatus === ampel).length,
+  }));
+
+  const districtCosts = Object.entries(districtCostMap).map(([stadtteil, value]) => ({ stadtteil, value }));
+  const trendText = averageEscalation > 60 ? 'Eskalationsdruck bleibt hoch, Steuerungsbedarf steigt.' : averageEscalation > 45 ? 'Frühintervention wirkt, Lage bleibt achtsam.' : 'Stabilisierung erkennbar, Monitoring fortsetzen.';
+
+  return {
+    totalMonthly,
+    totalAnnual,
+    counts,
+    averageEscalation,
+    interventionCounts,
+    totalSavingsPotential,
+    averageCostPerCase,
+    acuteEscalations,
+    interventionQuote,
+    costByAmpel,
+    districtCosts,
+    trendText,
   };
 }
 
@@ -126,8 +198,9 @@ export default function DashboardPage() {
       try {
         const parsed = JSON.parse(stored) as CaseData[];
         if (Array.isArray(parsed) && parsed.length === defaultCases.length) {
-          setFaelle(parsed);
-          setSelectedId(parsed[0]?.id ?? defaultCases[0]?.id ?? '');
+          const recalced = parsed.map(recalcCase);
+          setFaelle(recalced);
+          setSelectedId(recalced[0]?.id ?? defaultCases[0]?.id ?? '');
           setInitialized(true);
           return;
         }
@@ -136,8 +209,9 @@ export default function DashboardPage() {
       }
     }
 
-    setFaelle(defaultCases);
-    setSelectedId(defaultCases[0]?.id ?? '');
+    const recalced = defaultCases.map(recalcCase);
+    setFaelle(recalced);
+    setSelectedId(recalced[0]?.id ?? '');
     setInitialized(true);
   }, []);
 
@@ -155,62 +229,8 @@ export default function DashboardPage() {
     return faelle.filter((fall) => getFallAmpel(fall) === riskFilter);
   }, [faelle, riskFilter]);
 
-  const summary = useMemo(() => {
-    const totalMonthly = faelle.reduce((sum, fall) => sum + caseMonthlyCost(fall), 0);
-    const totalAnnual = faelle.reduce((sum, fall) => sum + caseMonthlyCost(fall) * 12, 0);
-    const counts = faelle.reduce(
-      (acc, fall) => {
-        const ampel = getFallAmpel(fall);
-        return {
-          grün: acc.grün + (ampel === 'grün' ? 1 : 0),
-          gelb: acc.gelb + (ampel === 'gelb' ? 1 : 0),
-          rot: acc.rot + (ampel === 'rot' ? 1 : 0),
-        };
-      },
-      { grün: 0, gelb: 0, rot: 0 },
-    );
-    const averageEscalation = faelle.length ? Math.round(faelle.reduce((sum, fall) => sum + fall.eskalationsrisiko, 0) / faelle.length) : 0;
-    const interventionCounts = interventionOptions.reduce(
-      (acc, key) => ({ ...acc, [key]: faelle.filter((fall) => fall.interventionsstatus === key).length }),
-      {} as Record<Interventionsstatus, number>,
-    );
-    const totalSavingsPotential = faelle.reduce((sum, fall) => sum + fall.erwarteteKostensenkung, 0);
-    const averageCostPerCase = faelle.length ? Math.round(totalMonthly / faelle.length) : 0;
-    const acuteEscalations = faelle.filter((fall) => getFallAmpel(fall) === 'rot' && fall.eskalationsrisiko >= 75).length;
-    const interventionQuote = faelle.length
-      ? Math.round((faelle.filter((fall) => fall.interventionsstatus !== 'Monitoring').length / faelle.length) * 100)
-      : 0;
+  const summary = useMemo(() => recalcDashboard(faelle), [faelle]);
 
-    const districtCostMap = faelle.reduce((acc, fall) => {
-      acc[fall.stadtteil] = (acc[fall.stadtteil] ?? 0) + caseMonthlyCost(fall) * 12;
-      return acc;
-    }, {} as Record<string, number>);
-
-    const costByAmpel = (['grün', 'gelb', 'rot'] as Ampelstatus[]).map((ampel) => ({
-      name: ampel,
-      monat: faelle.filter((fall) => getFallAmpel(fall) === ampel).reduce((sum, fall) => sum + caseMonthlyCost(fall), 0),
-      count: faelle.filter((fall) => getFallAmpel(fall) === ampel).length,
-    }));
-
-    const districtCosts = Object.entries(districtCostMap).map(([stadtteil, value]) => ({ stadtteil, value }));
-
-    const trendText = averageEscalation > 60 ? 'Eskalationsdruck bleibt hoch, Steuerungsbedarf steigt.' : averageEscalation > 45 ? 'Frühintervention wirkt, Lage bleibt achtsam.' : 'Stabilisierung erkennbar, Monitoring fortsetzen.';
-
-    return {
-      totalMonthly,
-      totalAnnual,
-      counts,
-      averageEscalation,
-      interventionCounts,
-      totalSavingsPotential,
-      averageCostPerCase,
-      acuteEscalations,
-      interventionQuote,
-      costByAmpel,
-      districtCosts,
-      trendText,
-    };
-  }, [faelle]);
 
   const updateKostenposition = (label: string, amountInput: string | number) => {
     const amount = parseAmountInput(amountInput);
