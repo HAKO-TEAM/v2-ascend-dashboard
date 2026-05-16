@@ -39,7 +39,7 @@ export type CaseData = {
   familienlage: string;
   psychologischeEinschaetzung: string;
   timeline: string[];
-  kostenstellen: Kostenposition[];
+  kostenstellen: Record<string, number>;
   ascendEmpfehlung: string;
 };
 
@@ -193,7 +193,15 @@ const makeCase = (i: number, ampel: Ampelstatus, base: number): CaseData => {
   const stadtteil = stadtteile[i % stadtteile.length];
   const name = fallnamen[i % fallnamen.length];
   const structure = ampel === 'rot' ? redDistribution : ampel === 'gelb' ? yellowDistribution : greenDistribution;
-  const kostenstellen = buildKostenstellen(base, structure);
+  const kostenstellenArray = buildKostenstellen(base, structure);
+  // convert array of positions to a simple map { label: amount }
+  const kostenstellen = kostenstellenArray.reduce((acc: Record<string, number>, pos) => {
+    acc[pos.label] = Number(pos.amount || 0);
+    return acc;
+  }, {} as Record<string, number>);
+
+  // ensure monatKostenGesamt equals the sum of kostenstellen (fallback to base if sum is 0)
+  const monatSum = Object.values(kostenstellen).reduce((s, v) => s + Number(v || 0), 0) || base || 3500;
   const timelineBase = [
     'Erstbewertung abgeschlossen',
     'Statusbericht an Steuergruppe gesendet',
@@ -210,8 +218,8 @@ const makeCase = (i: number, ampel: Ampelstatus, base: number): CaseData => {
     stadtteil,
     ampelstatus: ampel,
     status: statusLabel(ampel),
-    monatKostenGesamt: base,
-    jahresKostenGesamt: base * 12,
+    monatKostenGesamt: monatSum,
+    jahresKostenGesamt: monatSum * 12,
     eskalationsrisiko: risk.eskalationsrisiko,
     stabilisierungspotential: risk.stabilisierungspotential,
     reintegrationswahrscheinlichkeit: risk.reintegrationswahrscheinlichkeit,
