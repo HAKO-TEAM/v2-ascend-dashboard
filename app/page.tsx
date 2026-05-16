@@ -176,15 +176,17 @@ export default function DashboardPage() {
       previous.map((fall) => {
         if (fall.id !== selectedId) return fall;
 
-        const kostenstellen = Array.isArray(fall.kostenstellen)
-          ? fall.kostenstellen.map((position) =>
-              position.label === label ? { ...position, amount } : position,
-            )
-          : fall.kostenstellen;
+        // Normalize kostenstellen to an object map for reliable updates
+        const ksObj: Record<string, number> = Array.isArray(fall.kostenstellen)
+          ? fall.kostenstellen.reduce((acc: Record<string, number>, pos: any) => ({ ...acc, [pos.label]: Number(pos.amount || 0) }), {})
+          : { ...(fall.kostenstellen as Record<string, number> || {}) };
+
+        ksObj[label] = amount;
 
         const updatedFall: CaseData = {
           ...fall,
-          kostenstellen,
+          // store as object map to make controlled inputs simple
+          kostenstellen: ksObj as any,
         };
 
         const monatKostenGesamt = caseMonthlyCost(updatedFall);
@@ -192,7 +194,7 @@ export default function DashboardPage() {
           ...updatedFall,
           monatKostenGesamt,
           jahresKostenGesamt: monatKostenGesamt * 12,
-        };
+        } as CaseData;
       }),
     );
   };
@@ -435,15 +437,13 @@ export default function DashboardPage() {
               <p className="text-sm uppercase tracking-[0.26em] text-slate-400">Kostenstellen</p>
               <p className="mt-3 text-sm text-slate-400">Summe aller Kostenpositionen: {formatCurrency(caseMonthlyCost(selectedFall))}</p>
               <div className="mt-5 space-y-4">
-                {(Array.isArray(selectedFall?.kostenstellen) ? selectedFall.kostenstellen : []).map((position) => (
-                  <label key={position.label} className="grid gap-2 text-sm text-slate-300">
-                    <span className="font-semibold text-slate-100">{position.label}</span>
+                {Object.entries(selectedFall?.kostenstellen ?? {}).map(([label, value]) => (
+                  <label key={label} className="grid gap-2 text-sm text-slate-300">
+                    <span className="font-semibold text-slate-100">{label}</span>
                     <input
                       type="number"
-                      min={0}
-                      step={50}
-                      value={Number(position.amount) || 0}
-                      onChange={(event) => updateKostenposition(position.label, event.target.value)}
+                      value={Number(value) || 0}
+                      onChange={(event) => updateKostenposition(label, event.target.value)}
                       className="w-full rounded-3xl border border-slate-700/80 bg-slate-950/90 px-4 py-3 text-slate-100 outline-none transition focus:border-cyan-500"
                     />
                   </label>
