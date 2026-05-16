@@ -41,6 +41,12 @@ function caseMonthlyCost(fall: CaseData | null | undefined): number {
   return values.reduce<number>((sum, value) => sum + Number(value || 0), 0);
 }
 
+function parseAmountInput(input: string | number): number {
+  const normalized = typeof input === 'string' ? input.replace(',', '.') : String(input);
+  const parsed = parseFloat(normalized);
+  return Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
+}
+
 function getFallAmpel(fall: CaseData | null | undefined): Ampelstatus | undefined {
   return (fall as any)?.ampel ?? fall?.ampelstatus;
 }
@@ -163,25 +169,30 @@ export default function DashboardPage() {
     };
   }, [faelle]);
 
-  const updateKostenposition = (label: string, amountInput: number) => {
-    const amount = Number.isFinite(amountInput) ? amountInput : Number(amountInput) || 0;
+  const updateKostenposition = (label: string, amountInput: string | number) => {
+    const amount = parseAmountInput(amountInput);
+
     setFaelle((previous) =>
       previous.map((fall) => {
         if (fall.id !== selectedId) return fall;
-        const kostenstellen = {
-          ...fall.kostenstellen,
-          [label]: Math.max(0, amount),
-        };
-        const updatedFall = {
+
+        const kostenstellen = Array.isArray(fall.kostenstellen)
+          ? fall.kostenstellen.map((position) =>
+              position.label === label ? { ...position, amount } : position,
+            )
+          : fall.kostenstellen;
+
+        const updatedFall: CaseData = {
           ...fall,
           kostenstellen,
-        } as CaseData;
+        };
+
         const monatKostenGesamt = caseMonthlyCost(updatedFall);
         return {
           ...updatedFall,
           monatKostenGesamt,
           jahresKostenGesamt: monatKostenGesamt * 12,
-        } as CaseData;
+        };
       }),
     );
   };
@@ -424,15 +435,15 @@ export default function DashboardPage() {
               <p className="text-sm uppercase tracking-[0.26em] text-slate-400">Kostenstellen</p>
               <p className="mt-3 text-sm text-slate-400">Summe aller Kostenpositionen: {formatCurrency(caseMonthlyCost(selectedFall))}</p>
               <div className="mt-5 space-y-4">
-                {Object.entries(selectedFall?.kostenstellen ?? {}).map(([label, value], index) => (
-                  <label key={label} className="grid gap-2 text-sm text-slate-300">
-                    <span className="font-semibold text-slate-100">{label}</span>
+                {(Array.isArray(selectedFall?.kostenstellen) ? selectedFall.kostenstellen : []).map((position) => (
+                  <label key={position.label} className="grid gap-2 text-sm text-slate-300">
+                    <span className="font-semibold text-slate-100">{position.label}</span>
                     <input
                       type="number"
                       min={0}
                       step={50}
-                      value={Number(value) || 0}
-                      onChange={(event) => updateKostenposition(label, Number(event.target.value))}
+                      value={Number(position.amount) || 0}
+                      onChange={(event) => updateKostenposition(position.label, event.target.value)}
                       className="w-full rounded-3xl border border-slate-700/80 bg-slate-950/90 px-4 py-3 text-slate-100 outline-none transition focus:border-cyan-500"
                     />
                   </label>
