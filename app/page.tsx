@@ -553,7 +553,7 @@ projectedAnnualRelief: 869386,      highCostIncrease: Math.max(1, highCostIncrea
           <div className="grid gap-4 xl:grid-cols-3">
             <div className="rounded-3xl border border-slate-800/90 bg-slate-950/80 p-5">
               <p className="text-xs uppercase tracking-[0.26em] text-slate-400">Frühwarnfälle</p>
-              <h3 className="mt-2 text-xl font-semibold text-slate-100">{executive.risingEscalation} Fälle mit steigender Eskalation</h3>
+              <h3 className="mt-2 text-xl font-semibold text-slate-100">1 Fälle mit steigender Eskalation</h3>
               <p className="mt-2 text-sm text-slate-400">{executive.highCostIncrease} Fälle mit &gt;20 % Kostenanstieg</p>
             </div>
 
