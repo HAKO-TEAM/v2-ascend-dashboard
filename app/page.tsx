@@ -361,6 +361,11 @@ function SimulationEngine() {
   const gelbSim = Math.max(2, 10 - Math.round(fruehinterventionen / 10));
   const gruenSim = 3 + Math.round(rueckfuehrungsquote / 3) + Math.round(fruehinterventionen / 14);
 
+  const jahreswirkung = familienhilfen * 28000 + rueckfuehrungsquote * 38750;
+  const wirkung12 = Math.round(jahreswirkung);
+  const wirkung24 = Math.round(jahreswirkung * 2.05);
+  const wirkung36 = Math.round(jahreswirkung * 3.15);
+
   return (
     <>
     <div className="rounded-[2rem] border border-slate-800/90 bg-slate-950/80 p-6 shadow-glow">
@@ -536,6 +541,44 @@ function SimulationEngine() {
 
       <p className="mt-5 text-xs text-slate-500 tracking-wide">
         ASCEND simuliert Auswirkungen operativer Steuerung auf kommunale Risikolagen.
+      </p>
+    </div>
+
+    <div className="rounded-[2rem] border border-slate-800/90 bg-slate-950/80 p-6 shadow-glow">
+      <div className="mb-5">
+        <p className="text-xs uppercase tracking-[0.3em] text-cyan-300/80">Mittelfristige Haushaltswirkung</p>
+        <h2 className="mt-2 text-2xl font-semibold text-slate-100">36-Monats-Haushaltswirkung</h2>
+        <p className="mt-1 text-sm text-slate-400">Simulierte mittelfristige Entlastung kommunaler Sozialhaushalte</p>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <div className="rounded-3xl border border-slate-700/60 bg-slate-900/80 p-5">
+          <p className="text-xs uppercase tracking-[0.24em] text-slate-500">12 Monate</p>
+          <p className="mt-3 text-2xl font-semibold text-cyan-300">
+            {wirkung12 > 0 ? `€ ${wirkung12.toLocaleString('de-DE')}` : '—'}
+          </p>
+          <p className="mt-1 text-xs text-slate-500">Jahreswirkung</p>
+        </div>
+
+        <div className="rounded-3xl border border-cyan-800/40 bg-cyan-500/5 p-5">
+          <p className="text-xs uppercase tracking-[0.24em] text-slate-500">24 Monate</p>
+          <p className="mt-3 text-2xl font-semibold text-cyan-200">
+            {wirkung24 > 0 ? `€ ${wirkung24.toLocaleString('de-DE')}` : '—'}
+          </p>
+          <p className="mt-1 text-xs text-slate-500">+5 % kumulierter Hebel</p>
+        </div>
+
+        <div className="rounded-3xl border border-blue-700/40 bg-blue-500/5 p-5">
+          <p className="text-xs uppercase tracking-[0.24em] text-slate-500">36 Monate</p>
+          <p className="mt-3 text-2xl font-semibold text-blue-300">
+            {wirkung36 > 0 ? `€ ${wirkung36.toLocaleString('de-DE')}` : '—'}
+          </p>
+          <p className="mt-1 text-xs text-slate-500">Kumulierte 3-Jahres-Wirkung</p>
+        </div>
+      </div>
+
+      <p className="mt-5 text-xs text-slate-500 tracking-wide border-t border-slate-800/70 pt-4">
+        Die Projektion dient der strategischen Steuerungsabschätzung und ersetzt keine Haushaltsplanung.
       </p>
     </div>
     </>
