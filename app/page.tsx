@@ -413,8 +413,9 @@ function SimulationEngine() {
               type="range"
               min={0}
               max={40}
+              step={1}
               value={fruehinterventionen}
-              onChange={(e) => setFruehinterventionen(Number(e.target.value))}
+              onChange={(e) => { const v = Number(e.target.value); setFruehinterventionen(v); }}
               className="w-full accent-cyan-400 cursor-pointer"
             />
             <div className="flex justify-between text-xs text-slate-700">
@@ -424,7 +425,7 @@ function SimulationEngine() {
           <div className="mt-4 space-y-2">
             <div className="flex items-start gap-2 text-sm text-slate-300">
               <span className="mt-0.5 text-cyan-500/70 select-none">→</span>
-              <span>Eskalationsquote 18 % → {eskalationsziel} %</span>
+              <span>Eskalationsquote 18 % → {eskalationsziel} %</span>
             </div>
           </div>
         </div>
