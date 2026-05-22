@@ -357,7 +357,12 @@ function SimulationEngine() {
   const entlastungRueckfuehrung = rueckfuehrungsquote * 38750;
   const gesamtentlastung = entlastungFamilienhilfen + entlastungRueckfuehrung;
 
+  const rotSim = Math.max(1, 7 - Math.round(familienhilfen / 7) - Math.round(fruehinterventionen / 18));
+  const gelbSim = Math.max(2, 10 - Math.round(fruehinterventionen / 10));
+  const gruenSim = 3 + Math.round(rueckfuehrungsquote / 3) + Math.round(fruehinterventionen / 14);
+
   return (
+    <>
     <div className="rounded-[2rem] border border-slate-800/90 bg-slate-950/80 p-6 shadow-glow">
       <div className="mb-5 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -471,6 +476,69 @@ function SimulationEngine() {
         Simulation kommunaler Steuerungswirkungen auf Basis operativer Interventionsannahmen.
       </p>
     </div>
+
+    <div className="rounded-[2rem] border border-slate-800/90 bg-slate-950/80 p-6 shadow-glow">
+      <div className="mb-5">
+        <p className="text-xs uppercase tracking-[0.3em] text-cyan-300/80">Strategische Risikoanalyse</p>
+        <h2 className="mt-2 text-2xl font-semibold text-slate-100">ASCEND RISIKO PROGNOSE</h2>
+        <p className="mt-1 text-sm text-slate-400">Simulierte Entwicklung kommunaler Hochrisikolagen</p>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <div className="rounded-3xl border border-red-500/30 bg-red-500/5 p-5">
+          <span className="inline-flex items-center rounded-full px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] bg-red-500/15 text-red-300 ring-1 ring-red-500/20">ROT</span>
+          <p className="mt-3 text-xs uppercase tracking-[0.18em] text-slate-400">Akute Hochrisikofälle</p>
+          <div className="mt-3 flex items-baseline gap-4">
+            <div>
+              <p className="text-xs text-slate-500">Heute</p>
+              <p className="text-2xl font-semibold text-slate-200">7</p>
+            </div>
+            <span className="text-slate-600 text-lg">→</span>
+            <div>
+              <p className="text-xs text-slate-500">Simulation</p>
+              <p className="text-2xl font-semibold text-red-300">{rotSim}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-3xl border border-amber-500/30 bg-amber-500/5 p-5">
+          <span className="inline-flex items-center rounded-full px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] bg-amber-500/15 text-amber-300 ring-1 ring-amber-500/20">GELB</span>
+          <p className="mt-3 text-xs uppercase tracking-[0.18em] text-slate-400">Frühwarnfälle</p>
+          <div className="mt-3 flex items-baseline gap-4">
+            <div>
+              <p className="text-xs text-slate-500">Heute</p>
+              <p className="text-2xl font-semibold text-slate-200">10</p>
+            </div>
+            <span className="text-slate-600 text-lg">→</span>
+            <div>
+              <p className="text-xs text-slate-500">Simulation</p>
+              <p className="text-2xl font-semibold text-amber-300">{gelbSim}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-3xl border border-emerald-500/30 bg-emerald-500/5 p-5">
+          <span className="inline-flex items-center rounded-full px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/20">GRÜN</span>
+          <p className="mt-3 text-xs uppercase tracking-[0.18em] text-slate-400">Stabile Fälle</p>
+          <div className="mt-3 flex items-baseline gap-4">
+            <div>
+              <p className="text-xs text-slate-500">Heute</p>
+              <p className="text-2xl font-semibold text-slate-200">3</p>
+            </div>
+            <span className="text-slate-600 text-lg">→</span>
+            <div>
+              <p className="text-xs text-slate-500">Simulation</p>
+              <p className="text-2xl font-semibold text-emerald-300">{gruenSim}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <p className="mt-5 text-xs text-slate-500 tracking-wide">
+        ASCEND simuliert Auswirkungen operativer Steuerung auf kommunale Risikolagen.
+      </p>
+    </div>
+    </>
   );
 }
 
