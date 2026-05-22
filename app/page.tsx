@@ -347,20 +347,15 @@ function AscendMetaSteuerung() {
 }
 
 function SimulationEngine() {
-  const rows = [
-    {
-      trigger: '+15 Familienhilfen',
-      effects: ['-3 stationäre Fälle', '+420.000 € prognostizierte Entlastung p.a.'],
-    },
-    {
-      trigger: '+25 Frühinterventionen',
-      effects: ['Eskalationsquote 18 % → 11 %'],
-    },
-    {
-      trigger: '+8 % Rückführungsquote',
-      effects: ['+310.000 € zusätzliche Entlastung'],
-    },
-  ];
+  const [familienhilfen, setFamilienhilfen] = useState(15);
+  const [fruehinterventionen, setFruehinterventionen] = useState(25);
+  const [rueckfuehrungsquote, setRueckfuehrungsquote] = useState(8);
+
+  const stationaerReduziert = Math.round(familienhilfen / 5);
+  const entlastungFamilienhilfen = familienhilfen * 28000;
+  const eskalationsziel = Math.max(6, 18 - Math.round(fruehinterventionen * 0.28));
+  const entlastungRueckfuehrung = rueckfuehrungsquote * 38750;
+  const gesamtentlastung = entlastungFamilienhilfen + entlastungRueckfuehrung;
 
   return (
     <div className="rounded-[2rem] border border-slate-800/90 bg-slate-950/80 p-6 shadow-glow">
@@ -370,27 +365,114 @@ function SimulationEngine() {
           <h2 className="mt-2 text-2xl font-semibold text-slate-100">ASCEND Simulation Engine</h2>
         </div>
       </div>
+
       <div className="grid gap-4 md:grid-cols-3">
-        {rows.map((row) => (
-          <div key={row.trigger} className="rounded-3xl border border-slate-700/60 bg-slate-900/80 p-5">
-            <p className="text-sm font-semibold text-cyan-300 uppercase tracking-[0.12em]">{row.trigger}</p>
-            <div className="mt-3 space-y-2">
-              {row.effects.map((effect) => (
-                <div key={effect} className="flex items-start gap-2 text-sm text-slate-300">
-                  <span className="mt-0.5 text-cyan-500/70 select-none">→</span>
-                  <span>{effect}</span>
-                </div>
-              ))}
+        <div className="rounded-3xl border border-slate-700/60 bg-slate-900/80 p-5">
+          <p className="text-sm font-semibold text-cyan-300 uppercase tracking-[0.12em]">
+            +{familienhilfen} Familienhilfen
+          </p>
+          <div className="mt-4 space-y-1">
+            <div className="flex items-center justify-between text-xs text-slate-500 uppercase tracking-[0.16em]">
+              <span>Zusätzliche Familienhilfen</span>
+              <span className="text-slate-400 font-semibold">{familienhilfen}</span>
+            </div>
+            <input
+              type="range"
+              min={0}
+              max={30}
+              value={familienhilfen}
+              onChange={(e) => setFamilienhilfen(Number(e.target.value))}
+              className="w-full accent-cyan-400 cursor-pointer"
+            />
+            <div className="flex justify-between text-xs text-slate-700">
+              <span>0</span><span>30</span>
             </div>
           </div>
-        ))}
+          <div className="mt-4 space-y-2">
+            <div className="flex items-start gap-2 text-sm text-slate-300">
+              <span className="mt-0.5 text-cyan-500/70 select-none">→</span>
+              <span>-{stationaerReduziert} stationäre Fälle</span>
+            </div>
+            <div className="flex items-start gap-2 text-sm text-slate-300">
+              <span className="mt-0.5 text-cyan-500/70 select-none">→</span>
+              <span>+{entlastungFamilienhilfen.toLocaleString('de-DE')} € Entlastung p.a.</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-3xl border border-slate-700/60 bg-slate-900/80 p-5">
+          <p className="text-sm font-semibold text-cyan-300 uppercase tracking-[0.12em]">
+            +{fruehinterventionen} Frühinterventionen
+          </p>
+          <div className="mt-4 space-y-1">
+            <div className="flex items-center justify-between text-xs text-slate-500 uppercase tracking-[0.16em]">
+              <span>Frühinterventionen</span>
+              <span className="text-slate-400 font-semibold">{fruehinterventionen}</span>
+            </div>
+            <input
+              type="range"
+              min={0}
+              max={40}
+              value={fruehinterventionen}
+              onChange={(e) => setFruehinterventionen(Number(e.target.value))}
+              className="w-full accent-cyan-400 cursor-pointer"
+            />
+            <div className="flex justify-between text-xs text-slate-700">
+              <span>0</span><span>40</span>
+            </div>
+          </div>
+          <div className="mt-4 space-y-2">
+            <div className="flex items-start gap-2 text-sm text-slate-300">
+              <span className="mt-0.5 text-cyan-500/70 select-none">→</span>
+              <span>Eskalationsquote 18 % → {eskalationsziel} %</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-3xl border border-slate-700/60 bg-slate-900/80 p-5">
+          <p className="text-sm font-semibold text-cyan-300 uppercase tracking-[0.12em]">
+            +{rueckfuehrungsquote} % Rückführungsquote
+          </p>
+          <div className="mt-4 space-y-1">
+            <div className="flex items-center justify-between text-xs text-slate-500 uppercase tracking-[0.16em]">
+              <span>Rückführungsquote</span>
+              <span className="text-slate-400 font-semibold">{rueckfuehrungsquote} %</span>
+            </div>
+            <input
+              type="range"
+              min={0}
+              max={15}
+              value={rueckfuehrungsquote}
+              onChange={(e) => setRueckfuehrungsquote(Number(e.target.value))}
+              className="w-full accent-cyan-400 cursor-pointer"
+            />
+            <div className="flex justify-between text-xs text-slate-700">
+              <span>0 %</span><span>15 %</span>
+            </div>
+          </div>
+          <div className="mt-4 space-y-2">
+            <div className="flex items-start gap-2 text-sm text-slate-300">
+              <span className="mt-0.5 text-cyan-500/70 select-none">→</span>
+              <span>+{entlastungRueckfuehrung.toLocaleString('de-DE')} € zusätzliche Entlastung</span>
+            </div>
+          </div>
+        </div>
       </div>
-      <p className="mt-5 text-xs text-slate-500 tracking-wide">
+
+      <div className="mt-5 flex flex-col gap-1 rounded-2xl border border-slate-700/40 bg-slate-900/60 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-xs uppercase tracking-[0.22em] text-slate-400">Gesamte simulierte Haushaltswirkung</p>
+        <p className="text-xl font-semibold text-cyan-300">
+          € {gesamtentlastung.toLocaleString('de-DE')} p.a.
+        </p>
+      </div>
+
+      <p className="mt-4 text-xs text-slate-500 tracking-wide">
         Simulation kommunaler Steuerungswirkungen auf Basis operativer Interventionsannahmen.
       </p>
     </div>
   );
 }
+
 
 export default function DashboardPage() {
   const [faelle, setFaelle] = useState<CaseData[]>(defaultCases);
