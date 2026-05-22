@@ -292,6 +292,52 @@ function renderEventDot(props: any) {
   );
 }
 
+function SimulationEngine() {
+  const rows = [
+    {
+      trigger: '+15 Familienhilfen',
+      effects: ['-3 stationäre Fälle', '+420.000 € prognostizierte Entlastung p.a.'],
+    },
+    {
+      trigger: '+25 Frühinterventionen',
+      effects: ['Eskalationsquote 18 % → 11 %'],
+    },
+    {
+      trigger: '+8 % Rückführungsquote',
+      effects: ['+310.000 € zusätzliche Entlastung'],
+    },
+  ];
+
+  return (
+    <div className="rounded-[2rem] border border-slate-800/90 bg-slate-950/80 p-6 shadow-glow">
+      <div className="mb-5 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-xs uppercase tracking-[0.3em] text-cyan-300/80">Strategisches Steuerungswerkzeug</p>
+          <h2 className="mt-2 text-2xl font-semibold text-slate-100">ASCEND Simulation Engine</h2>
+        </div>
+      </div>
+      <div className="grid gap-4 md:grid-cols-3">
+        {rows.map((row) => (
+          <div key={row.trigger} className="rounded-3xl border border-slate-700/60 bg-slate-900/80 p-5">
+            <p className="text-sm font-semibold text-cyan-300 uppercase tracking-[0.12em]">{row.trigger}</p>
+            <div className="mt-3 space-y-2">
+              {row.effects.map((effect) => (
+                <div key={effect} className="flex items-start gap-2 text-sm text-slate-300">
+                  <span className="mt-0.5 text-cyan-500/70 select-none">→</span>
+                  <span>{effect}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+      <p className="mt-5 text-xs text-slate-500 tracking-wide">
+        Simulation kommunaler Steuerungswirkungen auf Basis operativer Interventionsannahmen.
+      </p>
+    </div>
+  );
+}
+
 export default function DashboardPage() {
   const [faelle, setFaelle] = useState<CaseData[]>(defaultCases);
   const [selectedId, setSelectedId] = useState(defaultCases[0]?.id ?? '');
@@ -618,6 +664,8 @@ projectedAnnualRelief: 869386,      highCostIncrease: Math.max(1, highCostIncrea
             </div>
           </div>
         </section>
+
+        <SimulationEngine />
 
         <section className="rounded-[2rem] border border-slate-800/90 bg-slate-950/80 p-6 shadow-glow">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
