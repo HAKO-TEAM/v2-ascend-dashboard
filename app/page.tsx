@@ -300,6 +300,7 @@ function AscendMetaSteuerung() {
     { label: 'INTERVENTIONSSTEUERUNG', accent: false },
     { label: 'SIMULATION', accent: false },
     { label: 'HAUSHALTSWIRKUNG', accent: false },
+    { label: 'RATHAUS / DEZERNAT', accent: false },
   ];
 
   return (
@@ -333,9 +334,14 @@ function AscendMetaSteuerung() {
         ))}
       </div>
 
-      <p className="mt-6 text-xs text-slate-500 tracking-wide text-center sm:text-left">
-        ASCEND verbindet operative Jugendhilfesteuerung mit kommunaler Haushaltssteuerung.
-      </p>
+      <div className="mt-6 space-y-2 border-t border-slate-800/70 pt-5">
+        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400 text-center sm:text-left">
+          Operative Jugendhilfesteuerung wird in kommunale Finanzsteuerung übersetzt.
+        </p>
+        <p className="text-xs text-slate-500 tracking-wide text-center sm:text-left">
+          ASCEND verbindet Fachverfahren, operative Jugendhilfesteuerung und kommunale Haushaltssteuerung.
+        </p>
+      </div>
     </div>
   );
 }
