@@ -292,6 +292,33 @@ function renderEventDot(props: any) {
   );
 }
 
+function FruehwarnungPlaceholder() {
+  return (
+    <div className="rounded-[2rem] border border-slate-800/90 bg-slate-950/80 p-6 shadow-glow">
+      <div className="mb-6">
+        <p className="text-xs uppercase tracking-[0.3em] text-cyan-300/80">Risikofrüherkennung</p>
+        <h2 className="mt-2 text-2xl font-semibold text-slate-100">ASCEND FRÜHWARNUNG</h2>
+        <p className="mt-2 text-sm text-slate-400">Frühindikatoren und Risikoentwicklungen über alle Fälle</p>
+      </div>
+      <div className="grid gap-4 md:grid-cols-3">
+        <div className="rounded-3xl border border-slate-700/60 bg-slate-900/80 p-5">
+          <p className="text-3xl font-semibold text-amber-300">24</p>
+          <p className="mt-2 text-xs uppercase tracking-[0.16em] text-amber-500/80">↑ Kostenanstieg &gt;20 %</p>
+          <p className="mt-1 text-sm text-slate-400">Fälle mit Kostenanstieg</p>
+        </div>
+        <div className="rounded-3xl border border-slate-700/60 bg-slate-900/80 p-5">
+          <p className="text-3xl font-semibold text-orange-300">9</p>
+          <p className="mt-2 text-sm text-slate-400">zweiter Hilfewechsel</p>
+        </div>
+        <div className="rounded-3xl border border-slate-700/60 bg-slate-900/80 p-5">
+          <p className="text-3xl font-semibold text-red-300">14</p>
+          <p className="mt-2 text-sm text-slate-400">steigende Dynamik</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function AscendMetaSteuerung() {
   const layers = [
     { label: 'FACHVERFAHREN', accent: false },
@@ -593,6 +620,7 @@ export default function DashboardPage() {
   const [riskFilter, setRiskFilter] = useState<(typeof riskFilterOptions)[number]>('Alle');
   const [initialized, setInitialized] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saved'>('idle');
+  const [activeTab, setActiveTab] = useState('executive');
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -819,8 +847,30 @@ projectedAnnualRelief: 869386,      highCostIncrease: Math.max(1, highCostIncrea
   }
 
   return (
-    <main className="min-h-screen px-6 py-8 text-slate-100 sm:px-8 lg:px-12">
-      <div className="mx-auto max-w-8xl space-y-8">
+    <main className="min-h-screen text-slate-100">
+      <nav className="sticky top-0 z-50 border-b border-slate-800/90 bg-slate-950/95 backdrop-blur-sm px-6 sm:px-8 lg:px-12">
+        <div className="mx-auto max-w-8xl flex items-center gap-1 overflow-x-auto py-3">
+          {[
+            { id: 'executive', label: 'Executive Cockpit' },
+            { id: 'fallsteuerung', label: 'Fallsteuerung' },
+            { id: 'fruehwarnung', label: 'Frühwarnung' },
+            { id: 'meta', label: 'Meta Steuerung' },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id)}
+              className={`whitespace-nowrap rounded-full px-5 py-2 text-sm font-semibold uppercase tracking-[0.14em] transition-all ${
+                activeTab === tab.id ? 'bg-cyan-500/15 text-cyan-300 ring-1 ring-cyan-500/30' : 'text-slate-500 hover:text-slate-200'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </nav>
+      <div className="mx-auto max-w-8xl space-y-8 px-6 py-8 sm:px-8 lg:px-12">
+        {activeTab === 'executive' && (<>
         <section className="space-y-6">
           <div className="rounded-[2rem] border border-slate-800/90 bg-slate-950/80 p-6 shadow-glow">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -914,9 +964,9 @@ projectedAnnualRelief: 869386,      highCostIncrease: Math.max(1, highCostIncrea
         </section>
 
         <SimulationEngine />
+        </>)}
 
-        <AscendMetaSteuerung />
-
+        {activeTab === 'fallsteuerung' && (<>
         <section className="rounded-[2rem] border border-slate-800/90 bg-slate-950/80 p-6 shadow-glow">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
@@ -1239,6 +1289,15 @@ projectedAnnualRelief: 869386,      highCostIncrease: Math.max(1, highCostIncrea
             </div>
           </aside>
         </section>
+        </>)}
+
+        {activeTab === 'fruehwarnung' && (
+          <FruehwarnungPlaceholder />
+        )}
+
+        {activeTab === 'meta' && (
+          <AscendMetaSteuerung />
+        )}
       </div>
     </main>
   );
