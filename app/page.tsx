@@ -292,6 +292,54 @@ function renderEventDot(props: any) {
   );
 }
 
+function AscendMetaSteuerung() {
+  const layers = [
+    { label: 'FACHVERFAHREN', accent: false },
+    { label: 'ASCEND', accent: true },
+    { label: 'RISIKOBEWERTUNG', accent: false },
+    { label: 'INTERVENTIONSSTEUERUNG', accent: false },
+    { label: 'SIMULATION', accent: false },
+    { label: 'HAUSHALTSWIRKUNG', accent: false },
+  ];
+
+  return (
+    <div className="rounded-[2rem] border border-slate-800/90 bg-slate-950/80 p-6 shadow-glow">
+      <div className="mb-6">
+        <p className="text-xs uppercase tracking-[0.3em] text-cyan-300/80">Strategische Architektur</p>
+        <h2 className="mt-2 text-2xl font-semibold text-slate-100">ASCEND META STEUERUNG</h2>
+        <p className="mt-2 text-sm text-slate-400">Zentrale kommunale Steuerung über Fachverfahren und operative Leistungsebenen</p>
+      </div>
+
+      <div className="flex flex-col items-center gap-0 sm:flex-row sm:items-stretch sm:justify-center sm:gap-0">
+        {layers.map((layer, index) => (
+          <div key={layer.label} className="flex flex-col items-center sm:flex-row sm:items-center">
+            <div
+              className={`flex min-w-[160px] items-center justify-center rounded-2xl border px-5 py-3 text-center text-xs font-bold uppercase tracking-[0.18em] transition-all ${
+                layer.accent
+                  ? 'border-cyan-400/60 bg-cyan-500/10 text-cyan-300 shadow-[0_0_24px_rgba(34,211,238,0.12)]'
+                  : 'border-slate-700/60 bg-slate-900/80 text-slate-300'
+              }`}
+            >
+              {layer.label}
+            </div>
+            {index < layers.length - 1 && (
+              <div className="flex flex-col items-center py-1 sm:flex-row sm:px-1 sm:py-0">
+                <div className="h-4 w-px bg-slate-700 sm:h-px sm:w-4" />
+                <span className="text-slate-600 text-xs sm:rotate-0 rotate-90 leading-none">↓</span>
+                <div className="h-4 w-px bg-slate-700 sm:h-px sm:w-4" />
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      <p className="mt-6 text-xs text-slate-500 tracking-wide text-center sm:text-left">
+        ASCEND verbindet operative Jugendhilfesteuerung mit kommunaler Haushaltssteuerung.
+      </p>
+    </div>
+  );
+}
+
 function SimulationEngine() {
   const rows = [
     {
@@ -666,6 +714,8 @@ projectedAnnualRelief: 869386,      highCostIncrease: Math.max(1, highCostIncrea
         </section>
 
         <SimulationEngine />
+
+        <AscendMetaSteuerung />
 
         <section className="rounded-[2rem] border border-slate-800/90 bg-slate-950/80 p-6 shadow-glow">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
