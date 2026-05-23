@@ -319,56 +319,161 @@ function FruehwarnungPlaceholder() {
   );
 }
 
+type MetaLayer = {
+  label: string;
+  accent: boolean;
+  statusLabel: string;
+  statusClass: string;
+  description: string;
+  indicators: string[];
+};
+
 function AscendMetaSteuerung() {
-  const layers = [
-    { label: 'FACHVERFAHREN', accent: false },
-    { label: 'ASCEND', accent: true },
-    { label: 'RISIKOBEWERTUNG', accent: false },
-    { label: 'INTERVENTIONSSTEUERUNG', accent: false },
-    { label: 'SIMULATION', accent: false },
-    { label: 'HAUSHALTSWIRKUNG', accent: false },
-    { label: 'RATHAUS / DEZERNAT', accent: false },
+  const [selected, setSelected] = useState<number | null>(null);
+
+  const layers: MetaLayer[] = [
+    {
+      label: 'FACHVERFAHREN',
+      accent: false,
+      statusLabel: 'Verbunden',
+      statusClass: 'bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/20',
+      description: 'Operative Datenbasis aus Jugendamtssoftware, Kostenträgern und Fallmanagementsystemen. Liefert Falldaten, Kostenstellen und Hilfeverläufe.',
+      indicators: ['20 Fälle erfasst', 'Schnittstelle stabil', 'Datenstand: laufend'],
+    },
+    {
+      label: 'ASCEND',
+      accent: true,
+      statusLabel: 'System aktiv',
+      statusClass: 'bg-cyan-500/15 text-cyan-300 ring-1 ring-cyan-500/30',
+      description: 'KI-gestütztes kommunales Steuerungssystem. Verknüpft Fachverfahren, operative Jugendhilfe und kommunale Haushaltssteuerung in einem integrierten Lagebild.',
+      indicators: ['Risikomodul läuft', 'Echtzeit-Scoring aktiv', 'Version 2.0 · Pilot'],
+    },
+    {
+      label: 'RISIKOBEWERTUNG',
+      accent: false,
+      statusLabel: 'Laufend',
+      statusClass: 'bg-amber-500/15 text-amber-300 ring-1 ring-amber-500/20',
+      description: 'Automatisierte Ampel-Einstufung nach monatlichen Kostenentwicklungen und Eskalationsrisiko. Basis für alle operativen Steuerungsentscheidungen.',
+      indicators: ['7 rot · 10 gelb · 3 grün', 'Tagesaktuell bewertet', 'Schwellenwerte validiert'],
+    },
+    {
+      label: 'INTERVENTIONSSTEUERUNG',
+      accent: false,
+      statusLabel: 'Aktiv',
+      statusClass: 'bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/20',
+      description: 'Planung und Koordination operativer Hilfsmaßnahmen auf Basis der Risikolage. Steuert Ressourceneinsatz, Fachkräfte und Maßnahmenwahl.',
+      indicators: ['4 Akutinterventionen', 'Interventionsquote 76 %', 'Fachkräfte koordiniert'],
+    },
+    {
+      label: 'SIMULATION',
+      accent: false,
+      statusLabel: 'Bereit',
+      statusClass: 'bg-blue-500/15 text-blue-300 ring-1 ring-blue-500/20',
+      description: 'Szenariomodelle für Haushaltswirkungen und Risikoverläufe bei unterschiedlichen Steuerungsalternativen. Drei interaktive Slider im Executive Cockpit.',
+      indicators: ['3 Steuerungsparameter', '36-Monats-Projektion', 'Live-Berechnung aktiv'],
+    },
+    {
+      label: 'HAUSHALTSWIRKUNG',
+      accent: false,
+      statusLabel: 'Prognose aktiv',
+      statusClass: 'bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/20',
+      description: 'Monetäre Entlastungsprognose für kommunale Sozialhaushalte auf Basis operativer Szenarien. Direkte Rückkopplung in die Kämmerei.',
+      indicators: ['€ 869.386 p.a. prognostiziert', 'Einsparpotenzial: € 412.836', '36-Monate-Wirkung berechnet'],
+    },
+    {
+      label: 'RATHAUS / DEZERNAT',
+      accent: false,
+      statusLabel: 'Berichtsbereit',
+      statusClass: 'bg-slate-600/40 text-slate-300 ring-1 ring-slate-500/30',
+      description: 'Strategische Entscheidungsebene mit verdichtetem Zugriff auf operative Steuerungsdaten. Executive Cockpit für OB, Dezernat und Kämmerei.',
+      indicators: ['Nächster Bericht: Jun 26', 'Letzter Abschluss: freigegeben', 'OB-Briefing verfügbar'],
+    },
   ];
 
+  const active = selected !== null ? layers[selected] : null;
+
   return (
-    <div className="rounded-[2rem] border border-slate-800/90 bg-slate-950/80 p-6 shadow-glow">
-      <div className="mb-6">
-        <p className="text-xs uppercase tracking-[0.3em] text-cyan-300/80">Strategische Architektur</p>
-        <h2 className="mt-2 text-2xl font-semibold text-slate-100">ASCEND META STEUERUNG</h2>
-        <p className="mt-2 text-sm text-slate-400">Zentrale kommunale Steuerung über Fachverfahren und operative Leistungsebenen</p>
-      </div>
-
-      <div className="flex flex-col items-center gap-0 sm:flex-row sm:items-stretch sm:justify-center sm:gap-0">
-        {layers.map((layer, index) => (
-          <div key={layer.label} className="flex flex-col items-center sm:flex-row sm:items-center">
-            <div
-              className={`flex min-w-[160px] items-center justify-center rounded-2xl border px-5 py-3 text-center text-xs font-bold uppercase tracking-[0.18em] transition-all ${
-                layer.accent
-                  ? 'border-cyan-400/60 bg-cyan-500/10 text-cyan-300 shadow-[0_0_24px_rgba(34,211,238,0.12)]'
-                  : 'border-slate-700/60 bg-slate-900/80 text-slate-300'
-              }`}
-            >
-              {layer.label}
-            </div>
-            {index < layers.length - 1 && (
-              <div className="flex flex-col items-center py-1 sm:flex-row sm:px-1 sm:py-0">
-                <div className="h-4 w-px bg-slate-700 sm:h-px sm:w-4" />
-                <span className="text-slate-600 text-xs sm:rotate-0 rotate-90 leading-none">↓</span>
-                <div className="h-4 w-px bg-slate-700 sm:h-px sm:w-4" />
-              </div>
-            )}
+    <div className="space-y-4">
+      <div className="rounded-[2rem] border border-slate-800/90 bg-slate-950/80 p-6 shadow-glow">
+        <div className="mb-6 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-[0.3em] text-cyan-300/80">Strategische Systemarchitektur</p>
+            <h2 className="mt-2 text-2xl font-semibold text-slate-100">ASCEND META STEUERUNG</h2>
+            <p className="mt-1 text-sm text-slate-400">Zentrale kommunale Steuerung über Fachverfahren und operative Leistungsebenen</p>
           </div>
-        ))}
+          {selected !== null && (
+            <button
+              type="button"
+              onClick={() => setSelected(null)}
+              className="mt-3 self-start rounded-full border border-slate-700/60 px-4 py-1.5 text-xs text-slate-400 transition hover:border-slate-600 hover:text-slate-200 sm:mt-0"
+            >
+              ✕ Schließen
+            </button>
+          )}
+        </div>
+
+        <div className="flex flex-col items-center gap-0 sm:flex-row sm:items-stretch sm:justify-center sm:gap-0">
+          {layers.map((layer, index) => (
+            <div key={layer.label} className="flex flex-col items-center sm:flex-row sm:items-center">
+              <button
+                type="button"
+                onClick={() => setSelected(selected === index ? null : index)}
+                className={`flex min-w-[148px] flex-col items-center justify-center gap-1.5 rounded-2xl border px-4 py-3 text-center text-xs font-bold uppercase tracking-[0.16em] transition-all ${
+                  selected === index
+                    ? 'border-cyan-400/70 bg-cyan-500/15 text-cyan-200 shadow-[0_0_28px_rgba(34,211,238,0.18)] ring-1 ring-cyan-400/40'
+                    : layer.accent
+                    ? 'border-cyan-400/60 bg-cyan-500/10 text-cyan-300 shadow-[0_0_24px_rgba(34,211,238,0.12)] hover:bg-cyan-500/15'
+                    : 'border-slate-700/60 bg-slate-900/80 text-slate-300 hover:border-slate-600/80 hover:bg-slate-800/80 hover:text-slate-100'
+                }`}
+              >
+                <span>{layer.label}</span>
+                <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold normal-case tracking-wide ${layer.statusClass}`}>
+                  {layer.statusLabel}
+                </span>
+              </button>
+              {index < layers.length - 1 && (
+                <div className="flex flex-col items-center py-1 sm:flex-row sm:px-1 sm:py-0">
+                  <div className="h-4 w-px bg-slate-700 sm:h-px sm:w-4" />
+                  <span className="text-slate-600 text-xs leading-none sm:rotate-0 rotate-90">↓</span>
+                  <div className="h-4 w-px bg-slate-700 sm:h-px sm:w-4" />
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-5 border-t border-slate-800/70 pt-4">
+          <p className="text-xs text-slate-500 tracking-wide">
+            {selected === null
+              ? 'Schicht anklicken für Details · ASCEND verbindet Fachverfahren, operative Jugendhilfesteuerung und kommunale Haushaltssteuerung.'
+              : 'Andere Schicht anklicken oder ✕ zum Schließen.'}
+          </p>
+        </div>
       </div>
 
-      <div className="mt-6 space-y-2 border-t border-slate-800/70 pt-5">
-        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400 text-center sm:text-left">
-          Operative Jugendhilfesteuerung wird in kommunale Finanzsteuerung übersetzt.
-        </p>
-        <p className="text-xs text-slate-500 tracking-wide text-center sm:text-left">
-          ASCEND verbindet Fachverfahren, operative Jugendhilfesteuerung und kommunale Haushaltssteuerung.
-        </p>
-      </div>
+      {active && (
+        <div className="rounded-[2rem] border border-cyan-800/50 bg-slate-950/90 p-6 shadow-glow">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex-1">
+              <div className="flex items-center gap-3">
+                <p className="text-xs uppercase tracking-[0.3em] text-cyan-300/80">Schichtdetail</p>
+                <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${active.statusClass}`}>
+                  {active.statusLabel}
+                </span>
+              </div>
+              <h3 className="mt-2 text-xl font-semibold text-slate-100">{active.label}</h3>
+              <p className="mt-2 max-w-2xl text-sm text-slate-300">{active.description}</p>
+            </div>
+          </div>
+          <div className="mt-5 flex flex-wrap gap-3">
+            {active.indicators.map((ind) => (
+              <div key={ind} className="rounded-2xl border border-slate-700/60 bg-slate-900/80 px-4 py-2 text-sm text-slate-300">
+                {ind}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
