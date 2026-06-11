@@ -13,6 +13,7 @@ import {
   CartesianGrid,
 } from 'recharts';
 import type { CaseData } from '../../lib/cases';
+import AscendCTA from './AscendCTA';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -471,6 +472,10 @@ export default function LeitungJugendamt({ cases }: Props) {
         </div>
 
       </div>
+
+      {/* ── CTA ─────────────────────────────────────────────────────────── */}
+      <AscendCTA context="leitung" />
+
     </div>
   );
 }

@@ -15,6 +15,7 @@ import {
   Legend,
 } from 'recharts';
 import type { CaseData } from '../../lib/cases';
+import AscendCTA from './AscendCTA';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type Ampel = 'grün' | 'gelb' | 'rot';
@@ -457,6 +458,9 @@ export default function FruehwarnungDashboard({ cases }: Props) {
           </div>
         </div>
       )}
+
+      {/* ── CTA ─────────────────────────────────────────────────────────── */}
+      <AscendCTA context="fruehwarnung" />
 
     </div>
   );
