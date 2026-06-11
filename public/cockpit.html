@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ASCEND · HzE-Cockpit · Jugendamt Bochum</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html,body,#root{height:100%;background:#040d1a;}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.35}}
+  @keyframes slideIn{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:translateX(0)}}
+  @keyframes blink{0%,49%{opacity:1}50%,100%{opacity:0}}
+  ::-webkit-scrollbar{width:6px;height:6px}
+  ::-webkit-scrollbar-track{background:#040d1a}
+  ::-webkit-scrollbar-thumb{background:#1e3a5f;border-radius:3px}
+  ::-webkit-scrollbar-thumb:hover{background:#2563eb}
+  button:hover{opacity:0.85;transform:scale(1.02)}
+  button{transition:all 0.15s}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState,useEffect} = React;
+
+const C = {
+  bg:"#040d1a",bgPanel:"#070f20",bgCard:"#0a1628",
+  blue:"#2563eb",blueGlow:"#3b82f6",blueXL:"#60a5fa",
+  cyan:"#06b6d4",cyanGlow:"#22d3ee",
+  red:"#ef4444",redGlow:"#f87171",
+  orange:"#f97316",amber:"#f59e0b",
+  green:"#22c55e",greenGlow:"#4ade80",
+  white:"#f0f9ff",dim:"#334155",dimText:"#64748b",
+  grid:"#0f2040",gridLine:"#0d1e38",
+};
+
+const TYP = {
+  "B":  {c:"#ef4444",glow:"#f87171",bg:"rgba(239,68,68,0.08)",   label:"EXTREMFALL",      border:"rgba(239,68,68,0.3)"},
+  "B-K":{c:"#f97316",glow:"#fb923c",bg:"rgba(249,115,22,0.08)",  label:"DROHEND",         border:"rgba(249,115,22,0.3)"},
+  "A":  {c:"#f59e0b",glow:"#fbbf24",bg:"rgba(245,158,11,0.08)",  label:"ESKALATION",      border:"rgba(245,158,11,0.3)"},
+  "C":  {c:"#06b6d4",glow:"#22d3ee",bg:"rgba(6,182,212,0.08)",   label:"MEHRFACHFAMILIE", border:"rgba(6,182,212,0.3)"},
+  "M":  {c:"#22c55e",glow:"#4ade80",bg:"rgba(34,197,94,0.08)",   label:"MONITORING",      border:"rgba(34,197,94,0.3)"},
+};
+
+const FAELLE = [
+  {id:"BO-0003",typ:"B",  score:94,km:13289,p12:14200,ha:"§35 ISE",              sr:"Wattenscheid",tr:"AWO Bochum",           tw:3,esk:"KRITISCH · Langzeit-stationär",  ma:"Diagnostik-Score · Übergabeprotokoll"},
+  {id:"BO-0011",typ:"B",  score:91,km:11840,p12:12600,ha:"UmA §42",              sr:"Hamme",       tr:"Diakonie Ruhr",         tw:2,esk:"KRITISCH · Kosten steigend",     ma:"Sofort-Fallkonferenz diese Woche"},
+  {id:"BO-0027",typ:"B",  score:88,km:9750, p12:10400,ha:"§35a stationär",       sr:"Grumme",      tr:"Caritas Bochum",        tw:2,esk:"KRITISCH · Sprunghaft",          ma:"Träger-Review · Exitplanung"},
+  {id:"BO-0041",typ:"B-K",score:82,km:5200, p12:7100, ha:"§34 Heimerziehung",    sr:"Wattenscheid",tr:"Jugendhilfe Ruhr gGmbH",tw:2,esk:"WARNUNG · Schwelle in 8 Mon.",  ma:"Fallkonferenz innerhalb 4 Wochen"},
+  {id:"BO-0018",typ:"B-K",score:79,km:4800, p12:6600, ha:"§34 Heimerziehung",    sr:"Hamme",       tr:"AWO Bochum",            tw:1,esk:"WARNUNG · Beschleunigt",        ma:"Fallkonferenz innerhalb 4 Wochen"},
+  {id:"BO-0033",typ:"B-K",score:76,km:4200, p12:6200, ha:"§31 SPFH intensiv",    sr:"Westenfeld",  tr:"SOS-Kinderdorf Ruhr",   tw:2,esk:"WARNUNG · Schwelle in 12 Mon.", ma:"Sofort-Fallkonferenz · Trajektorie"},
+  {id:"BO-0007",typ:"A",  score:71,km:4100, p12:4800, ha:"§34 Heimerziehung",    sr:"Grumme",      tr:"Caritas Bochum",        tw:1,esk:"BEOBACHTEN · Leicht steigend",  ma:"Automatische Fallkonferenz"},
+  {id:"BO-0022",typ:"A",  score:68,km:3900, p12:4500, ha:"§35a stationär",       sr:"Stahlhausen", tr:"Lebenshilfe Bochum",    tw:1,esk:"BEOBACHTEN · Variabel",         ma:"Hilfeplan-Benchmarking"},
+  {id:"BO-0049",typ:"A",  score:61,km:3600, p12:4100, ha:"§31 SPFH intensiv",    sr:"Langendreer", tr:"AWO Bochum",            tw:0,esk:"BEOBACHTEN · Stabil",           ma:"Nächste Fallkonferenz"},
+  {id:"BO-0014",typ:"C",  score:55,km:2800, p12:2900, ha:"§27 Tagesgruppe",      sr:"Wattenscheid",tr:"Kinderhaus Bochum e.V.",tw:1,esk:"MONITORING · Stabil",           ma:"Familien-Alert · 3 Geschwister"},
+  {id:"BO-0036",typ:"C",  score:52,km:2400, p12:2500, ha:"§32 Tagesgruppe stat.",sr:"Hamme",       tr:"Evangelisches JW",      tw:0,esk:"MONITORING · Stabil",           ma:"Familien-Alert · 2 Geschwister"},
+  {id:"BO-0028",typ:"C",  score:48,km:1900, p12:2000, ha:"§30 Erziehungsbeist.", sr:"Gerthe",      tr:"Neue Wege gGmbH",       tw:1,esk:"MONITORING · Stabil",           ma:"Familien-Monitoring"},
+  {id:"BO-0005",typ:"M",  score:38,km:1400, p12:1450, ha:"§27 SPFH",             sr:"Stiepel",     tr:"Sozialwerk St. Georg",  tw:0,esk:"NORMAL · Stabil",               ma:"Regulär quartalsweise"},
+  {id:"BO-0019",typ:"M",  score:32,km:1100, p12:1120, ha:"§29 Sozialgruppe",     sr:"Linden",      tr:"Diakonie Ruhr",         tw:0,esk:"NORMAL · Stabil",               ma:"Regulär quartalsweise"},
+  {id:"BO-0044",typ:"M",  score:28,km:850,  p12:860,  ha:"§27 SPFH",             sr:"Querenburg",  tr:"Caritas Bochum",        tw:0,esk:"NORMAL · Stabil",               ma:"Regulär quartalsweise"},
+];
+
+function getSpark(f){
+  const b=f.km, t=f.typ==="B"?0.018:f.typ==="B-K"?0.038:f.typ==="A"?0.012:0;
+  // Deterministisch – kein Math.random() damit konsistent
+  const seeds=[0.1,-0.2,0.15,-0.05,0.22,-0.1,0.18,-0.08,0.25,-0.15,0.12,-0.06];
+  return Array.from({length:12},(_,i)=>Math.round(b*(1-t*(11-i))+seeds[i]*b*0.04));
+}
+const SPARKS=Object.fromEntries(FAELLE.map(f=>[f.id,getSpark(f)]));
+
+function useNow(){
+  const [now,setNow]=useState(new Date());
+  useEffect(()=>{const t=setInterval(()=>setNow(new Date()),1000);return()=>clearInterval(t);},[]);
+  return now;
+}
+
+function GlowBadge({typ}){
+  const cfg=TYP[typ];
+  return <span style={{color:cfg.c,background:cfg.bg,border:`1px solid ${cfg.border}`,
+    borderRadius:3,padding:"2px 8px",fontSize:11,fontWeight:800,letterSpacing:1,
+    fontFamily:"monospace",textShadow:`0 0 8px ${cfg.glow}`,whiteSpace:"nowrap"}}>TYP {typ}</span>;
+}
+
+function ScoreArc({score,typ}){
+  const cfg=TYP[typ],r=20,cx=26,cy=26;
+  const circ=2*Math.PI*r,dash=(score/100)*circ;
+  return (
+    <svg width={52} height={52}>
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke={C.gridLine} strokeWidth={4}/>
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke={cfg.c} strokeWidth={4}
+        strokeDasharray={`${dash} ${circ - dash}`} strokeLinecap="round"
+        transform={`rotate(-90 ${cx} ${cy})`}
+        style={{filter:`drop-shadow(0 0 4px ${cfg.glow})`}}/>
+      <text x={cx} y={cy+1} textAnchor="middle" dominantBaseline="middle"
+        fill={cfg.c} fontSize={11} fontWeight="800" fontFamily="monospace">{score}</text>
+    </svg>
+  );
+}
+
+function Spark({vals,color}){
+  if(!vals||vals.length<2) return null;
+  const mn=Math.min(...vals),mx=Math.max(...vals),rng=mx-mn||1;
+  const w=80,h=24;
+  const pts=vals.map((v,i)=>`${(i/(vals.length-1))*(w-4)+2},${h-((v-mn)/rng)*(h-6)-3}`).join(" ");
+  const lx=(vals.length-1)/(vals.length-1)*(w-4)+2;
+  const ly=h-((vals[vals.length-1]-mn)/rng)*(h-6)-3;
+  return(
+    <svg width={w} height={h}>
+      <polyline points={pts} fill="none" stroke={color} strokeWidth={1.5}
+        style={{filter:`drop-shadow(0 0 3px ${color})`}}/>
+      <circle cx={lx} cy={ly} r={3} fill={color}
+        style={{filter:`drop-shadow(0 0 5px ${color})`}}/>
+    </svg>
+  );
+}
+
+function BigSpark({fid,typ}){
+  const vals=SPARKS[fid],cfg=TYP[typ];
+  if(!vals) return null;
+  const mn=Math.min(...vals),mx=Math.max(...vals),rng=mx-mn||1;
+  const w=308,h=52;
+  const pts=vals.map((v,i)=>`${(i/(vals.length-1))*(w-4)+2},${h-((v-mn)/rng)*(h-8)-4}`).join(" ");
+  const lx=(w-4)+2,ly=h-((vals[vals.length-1]-mn)/rng)*(h-8)-4;
+  return(
+    <svg width={w} height={h}>
+      <defs>
+        <linearGradient id={`sg_${fid}`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={cfg.c} stopOpacity="0.3"/>
+          <stop offset="100%" stopColor={cfg.c} stopOpacity="0"/>
+        </linearGradient>
+      </defs>
+      <polygon points={`2,${h} ${pts} ${lx},${h}`} fill={`url(#sg_${fid})`}/>
+      <polyline points={pts} fill="none" stroke={cfg.c} strokeWidth={2}
+        style={{filter:`drop-shadow(0 0 4px ${cfg.glow})`}}/>
+      <circle cx={lx} cy={ly} r={4} fill={cfg.c}
+        style={{filter:`drop-shadow(0 0 8px ${cfg.glow})`,animation:"pulse 1.5s infinite"}}/>
+    </svg>
+  );
+}
+
+function App(){
+  const [filter,setFilter]=useState("ALLE");
+  const [selected,setSelected]=useState(null);
+  const [sortBy,setSortBy]=useState("score");
+  const now=useNow();
+
+  const n=t=>FAELLE.filter(f=>f.typ===t).length;
+  const km_ges=FAELLE.reduce((s,f)=>s+f.km,0);
+  const sofort=FAELLE.filter(f=>f.typ==="B"||f.typ==="B-K").length;
+  const esk12=FAELLE.filter(f=>f.p12>=6000).length;
+
+  const liste=FAELLE
+    .filter(f=>filter==="ALLE"||f.typ===filter)
+    .sort((a,b)=>sortBy==="score"?b.score-a.score:b.km-a.km);
+
+  const sel=selected?FAELLE.find(f=>f.id===selected):null;
+  const timeStr=now.toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
+  const dateStr=now.toLocaleDateString("de-DE",{weekday:"short",day:"2-digit",month:"short",year:"numeric"});
+
+  const sozRaum=Object.entries(
+    FAELLE.reduce((acc,f)=>{acc[f.sr]=acc[f.sr]||{n:0,km:0};acc[f.sr].n++;acc[f.sr].km+=f.km;return acc;},{})
+  ).sort((a,b)=>b[1].km-a[1].km).slice(0,5);
+
+  const S={fontFamily:"'Courier New',Courier,monospace"};
+
+  return(
+    <div style={{...S,background:C.bg,minHeight:"100vh",color:C.white,position:"relative",overflow:"hidden"}}>
+
+      {/* Grid */}
+      <div style={{position:"fixed",inset:0,
+        backgroundImage:`linear-gradient(${C.gridLine} 1px,transparent 1px),linear-gradient(90deg,${C.gridLine} 1px,transparent 1px)`,
+        backgroundSize:"40px 40px",opacity:0.35,pointerEvents:"none",zIndex:0}}/>
+
+      {/* HEADER */}
+      <div style={{position:"relative",zIndex:10,borderBottom:`1px solid ${C.blue}`,
+        background:`linear-gradient(90deg,${C.bgPanel},rgba(37,99,235,0.06),${C.bgPanel})`,
+        padding:"0 28px",boxShadow:`0 1px 24px rgba(37,99,235,0.25)`}}>
+        <div style={{position:"absolute",top:0,left:0,right:0,height:2,
+          background:`linear-gradient(90deg,transparent,${C.blue} 20%,${C.cyan} 50%,${C.blue} 80%,transparent)`,
+          boxShadow:`0 0 10px ${C.blue}`}}/>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",height:60}}>
+          <div style={{display:"flex",alignItems:"center",gap:20}}>
+            <div>
+              <div style={{fontSize:22,fontWeight:800,letterSpacing:7,color:C.blueXL,
+                textShadow:`0 0 12px ${C.blueGlow},0 0 30px ${C.blue}`}}>ASCEND</div>
+              <div style={{fontSize:8,letterSpacing:4,color:C.dimText}}>HZE INTELLIGENCE SYSTEM v2.6</div>
+            </div>
+            <div style={{width:1,height:36,background:`linear-gradient(transparent,${C.blue},transparent)`}}/>
+            <div style={{fontSize:11,color:C.dimText,letterSpacing:1}}>
+              <div style={{color:C.cyan,fontWeight:700,textShadow:`0 0 6px ${C.cyanGlow}`}}>JUGENDAMT BOCHUM</div>
+              <div>AKTIVE FÄLLE: <span style={{color:C.green}}>{FAELLE.length}</span></div>
+            </div>
+          </div>
+          <div style={{display:"flex",gap:32,alignItems:"center"}}>
+            {[
+              {label:"SOFORTHANDLUNG",val:sofort,c:C.red,pulse:true},
+              {label:"ESKALATION 12M",val:esk12,c:C.orange,pulse:false},
+              {label:"KOSTEN / MONAT",val:`${(km_ges/1000).toFixed(0)}K €`,c:C.blueXL,pulse:false},
+            ].map(({label,val,c,pulse})=>(
+              <div key={label} style={{textAlign:"center"}}>
+                <div style={{fontSize:24,fontWeight:800,color:c,textShadow:`0 0 12px ${c}`,
+                  animation:pulse?"pulse 1.8s infinite":"none"}}>{val}</div>
+                <div style={{fontSize:8,color:C.dimText,letterSpacing:2}}>{label}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{textAlign:"right"}}>
+            <div style={{fontSize:22,fontWeight:800,letterSpacing:3,color:C.blueXL,
+              textShadow:`0 0 8px ${C.blue}`,fontVariantNumeric:"tabular-nums"}}>{timeStr}</div>
+            <div style={{fontSize:9,color:C.dimText,letterSpacing:2}}>{dateStr.toUpperCase()}</div>
+          </div>
+        </div>
+      </div>
+
+      <div style={{padding:"16px 28px 28px",position:"relative",zIndex:1}}>
+
+        {/* KPI-LEISTE */}
+        <div style={{display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:10,marginBottom:16}}>
+          {[
+            {val:FAELLE.length,label:"AKTIVE FÄLLE",      sub:"Bestand gesamt",    c:C.blueXL,pulse:false},
+            {val:`${(km_ges/1000).toFixed(0)}K`,label:"€ / MONAT",sub:"aktiver Bestand",c:C.blueXL,pulse:false},
+            {val:n("B"),   label:"TYP B · EXTREM",  sub:"Sofort handeln",  c:C.red,   pulse:true},
+            {val:n("B-K"), label:"TYP B-K · DROHT", sub:"4 Wochen Fenster",c:C.orange,pulse:false},
+            {val:esk12,    label:"ESKALATION 12M",  sub:"Prognose >6.000€",c:C.orange,pulse:false},
+            {val:n("A")+n("C"),label:"TYP A + C",   sub:"Beobachten",      c:C.amber, pulse:false},
+          ].map(({val,label,sub,c,pulse},i)=>(
+            <div key={i} style={{background:C.bgCard,border:`1px solid ${c}25`,
+              borderTop:`2px solid ${c}`,borderRadius:4,padding:"10px 14px",position:"relative",overflow:"hidden"}}>
+              <div style={{position:"absolute",top:0,right:0,width:48,height:48,
+                background:`radial-gradient(circle at top right,${c}12,transparent)`}}/>
+              <div style={{fontSize:28,fontWeight:800,color:c,lineHeight:1,
+                textShadow:`0 0 10px ${c}`,animation:pulse?"pulse 1.5s infinite":"none",
+                fontVariantNumeric:"tabular-nums"}}>{val}</div>
+              <div style={{fontSize:9,fontWeight:700,color:c,marginTop:3,letterSpacing:1.5}}>{label}</div>
+              <div style={{fontSize:9,color:C.dimText,marginTop:1}}>{sub}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* HAUPTBEREICH */}
+        <div style={{display:"grid",gridTemplateColumns:"1fr 360px",gap:14}}>
+
+          {/* FALLLISTE */}
+          <div>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+              <div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
+                <span style={{fontSize:8,color:C.dimText,letterSpacing:2,marginRight:4}}>FILTER //</span>
+                {["ALLE","B","B-K","A","C","M"].map(t=>{
+                  const active=filter===t;
+                  const col=t==="ALLE"?{c:C.blueXL,glow:C.blue}:{c:TYP[t].c,glow:TYP[t].glow};
+                  return(
+                    <button key={t} onClick={()=>setFilter(t)} style={{
+                      padding:"4px 12px",background:active?`${col.c}18`:"transparent",
+                      border:`1px solid ${active?col.c:C.dim}`,color:active?col.c:C.dimText,
+                      borderRadius:3,fontSize:11,fontWeight:700,letterSpacing:1,cursor:"pointer",
+                      fontFamily:"monospace",textShadow:active?`0 0 6px ${col.glow}`:"none",
+                      boxShadow:active?`0 0 8px ${col.c}30`:"none"}}>
+                      {t==="ALLE"?`ALL (${FAELLE.length})`:`${t} (${n(t)})`}
+                    </button>
+                  );
+                })}
+              </div>
+              <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                <span style={{fontSize:8,color:C.dimText,letterSpacing:2}}>SORT //</span>
+                {[["score","SCORE"],["km","KOSTEN"]].map(([v,l])=>(
+                  <button key={v} onClick={()=>setSortBy(v)} style={{
+                    padding:"4px 10px",background:sortBy===v?`${C.cyan}15`:"transparent",
+                    border:`1px solid ${sortBy===v?C.cyan:C.dim}`,color:sortBy===v?C.cyan:C.dimText,
+                    borderRadius:3,fontSize:10,fontFamily:"monospace",cursor:"pointer",letterSpacing:1}}>{l}</button>
+                ))}
+              </div>
+            </div>
+
+            <div style={{background:C.bgCard,border:`1px solid ${C.blue}35`,borderRadius:6,
+              overflow:"hidden",boxShadow:`0 0 20px rgba(37,99,235,0.08)`}}>
+              {/* Header */}
+              <div style={{display:"grid",
+                gridTemplateColumns:"100px 80px 58px 108px 62px 108px 80px 1fr",
+                padding:"8px 16px",gap:8,
+                background:`linear-gradient(90deg,${C.bgPanel},rgba(37,99,235,0.05))`,
+                borderBottom:`1px solid ${C.blue}35`}}>
+                {["FALL-ID","TYP","SCORE","€/MONAT","TREND","PROG 12M","SOZIALRAUM","TRÄGER / MASSNAHME"].map(h=>(
+                  <div key={h} style={{fontSize:8,fontWeight:700,color:C.cyan,letterSpacing:2}}>{h}</div>
+                ))}
+              </div>
+
+              {/* Zeilen */}
+              {liste.map((f)=>{
+                const cfg=TYP[f.typ],isSel=selected===f.id;
+                const spark=SPARKS[f.id];
+                const tUp=spark[spark.length-1]>spark[spark.length-3];
+                return(
+                  <div key={f.id} onClick={()=>setSelected(isSel?null:f.id)}
+                    style={{display:"grid",
+                      gridTemplateColumns:"100px 80px 58px 108px 62px 108px 80px 1fr",
+                      padding:"9px 16px",gap:8,
+                      background:isSel?"rgba(37,99,235,0.12)":
+                        f.typ==="B"?"rgba(239,68,68,0.04)":
+                        f.typ==="B-K"?"rgba(249,115,22,0.04)":"transparent",
+                      borderLeft:`2px solid ${isSel?C.blueXL:cfg.c}`,
+                      borderBottom:`1px solid ${C.gridLine}`,
+                      cursor:"pointer",alignItems:"center",
+                      animation:isSel?"slideIn 0.2s ease":"none"}}>
+                    <div style={{fontWeight:800,fontSize:12,color:C.blueXL,letterSpacing:1,
+                      textShadow:isSel?`0 0 6px ${C.blue}`:"none"}}>{f.id}</div>
+                    <GlowBadge typ={f.typ}/>
+                    <div style={{display:"flex",justifyContent:"center"}}>
+                      <ScoreArc score={f.score} typ={f.typ}/>
+                    </div>
+                    <div style={{fontWeight:800,fontSize:13,
+                      color:f.km>=6000?C.red:f.km>=3800?C.orange:C.white,
+                      textShadow:f.km>=6000?`0 0 8px ${C.red}`:"none",
+                      fontVariantNumeric:"tabular-nums"}}>
+                      {f.km.toLocaleString("de-DE")}
+                    </div>
+                    <div><Spark vals={spark} color={tUp?C.red:C.green}/></div>
+                    <div style={{fontWeight:700,fontSize:12,
+                      color:f.p12>=6000?C.red:C.green,
+                      textShadow:`0 0 6px ${f.p12>=6000?C.red:C.green}`,
+                      fontVariantNumeric:"tabular-nums"}}>
+                      {f.p12.toLocaleString("de-DE")}
+                      {f.p12>=6000&&<span style={{display:"block",fontSize:8,color:C.red,
+                        letterSpacing:1,animation:"pulse 1s infinite"}}>▲ B-SCHWELLE</span>}
+                    </div>
+                    <div style={{fontSize:10,color:C.dimText}}>{f.sr}</div>
+                    <div>
+                      <div style={{fontSize:10,color:C.dimText}}>{f.tr}</div>
+                      <div style={{fontSize:9,color:cfg.c,marginTop:2,
+                        textShadow:`0 0 4px ${cfg.glow}`}}>{f.ma}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* RECHTE SPALTE */}
+          <div style={{display:"flex",flexDirection:"column",gap:12}}>
+
+            {/* Falldetail */}
+            {sel?(
+              <div style={{background:C.bgCard,border:`1px solid ${TYP[sel.typ].c}50`,
+                borderTop:`2px solid ${TYP[sel.typ].c}`,borderRadius:6,padding:16,
+                animation:"slideIn 0.2s ease",boxShadow:`0 0 24px ${TYP[sel.typ].c}18`}}>
+                <div style={{fontSize:8,color:C.cyan,letterSpacing:3,marginBottom:8}}>// FALLPROFIL GELADEN</div>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+                  <div>
+                    <div style={{fontSize:22,fontWeight:800,color:TYP[sel.typ].c,
+                      textShadow:`0 0 12px ${TYP[sel.typ].glow}`,letterSpacing:2}}>{sel.id}</div>
+                    <div style={{fontSize:9,color:C.dimText,letterSpacing:1,marginTop:2}}>{sel.ha}</div>
+                  </div>
+                  <ScoreArc score={sel.score} typ={sel.typ}/>
+                </div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}}>
+                  {[
+                    {val:`${sel.km.toLocaleString("de-DE")} €`,label:"KOSTEN / MONAT",
+                      c:sel.km>=6000?C.red:TYP[sel.typ].c,bg:`${TYP[sel.typ].c}10`},
+                    {val:`${sel.p12.toLocaleString("de-DE")} €`,label:"PROGNOSE 12M",
+                      c:sel.p12>=6000?C.red:C.green,bg:sel.p12>=6000?`${C.red}10`:`${C.green}10`},
+                  ].map(({val,label,c,bg})=>(
+                    <div key={label} style={{background:bg,border:`1px solid ${c}30`,
+                      borderRadius:4,padding:"10px 12px",textAlign:"center"}}>
+                      <div style={{fontSize:17,fontWeight:800,color:c,
+                        textShadow:`0 0 8px ${c}`,fontVariantNumeric:"tabular-nums"}}>{val}</div>
+                      <div style={{fontSize:8,color:C.dimText,letterSpacing:2,marginTop:2}}>{label}</div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{background:C.bgPanel,border:`1px solid ${C.dim}`,borderRadius:4,
+                  padding:"10px 12px",marginBottom:12}}>
+                  <div style={{fontSize:8,color:C.dimText,letterSpacing:2,marginBottom:6}}>KOSTENVERLAUF 12 MONATE</div>
+                  <BigSpark fid={sel.id} typ={sel.typ}/>
+                </div>
+                {[["SOZIALRAUM",sel.sr],["TRÄGER",sel.tr],["TRÄGERWECHSEL",`${sel.tw}x`],["TRAJEKTORIE",sel.esk]].map(([l,v])=>(
+                  <div key={l} style={{display:"flex",justifyContent:"space-between",
+                    padding:"5px 0",borderBottom:`1px solid ${C.gridLine}`,fontSize:11}}>
+                    <span style={{color:C.dimText,fontSize:9,letterSpacing:1}}>{l}</span>
+                    <span style={{fontWeight:700,color:C.white,textAlign:"right",maxWidth:180}}>{v}</span>
+                  </div>
+                ))}
+                <div style={{marginTop:12,background:`${TYP[sel.typ].c}12`,
+                  border:`1px solid ${TYP[sel.typ].c}40`,borderLeft:`3px solid ${TYP[sel.typ].c}`,
+                  borderRadius:4,padding:"10px 12px"}}>
+                  <div style={{fontSize:8,color:C.dimText,letterSpacing:2,marginBottom:4}}>ASCEND-MASSNAHME</div>
+                  <div style={{fontSize:12,fontWeight:700,color:TYP[sel.typ].c,
+                    textShadow:`0 0 6px ${TYP[sel.typ].glow}`}}>{sel.ma}</div>
+                </div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginTop:12}}>
+                  <button style={{padding:"9px 0",background:`${TYP[sel.typ].c}20`,
+                    border:`1px solid ${TYP[sel.typ].c}`,color:TYP[sel.typ].c,
+                    borderRadius:4,fontSize:10,fontWeight:800,letterSpacing:2,cursor:"pointer",
+                    fontFamily:"monospace",textShadow:`0 0 6px ${TYP[sel.typ].glow}`}}>FALLKONFERENZ</button>
+                  <button style={{padding:"9px 0",background:"transparent",
+                    border:`1px solid ${C.dim}`,color:C.dimText,borderRadius:4,
+                    fontSize:10,letterSpacing:2,cursor:"pointer",fontFamily:"monospace"}}>ZUR AKTE</button>
+                </div>
+              </div>
+            ):(
+              <div style={{background:C.bgCard,border:`1px solid ${C.blue}30`,borderRadius:6,
+                padding:20,textAlign:"center"}}>
+                <div style={{fontSize:10,color:C.blue,letterSpacing:3,animation:"pulse 2s infinite"}}>
+                  // WARTET AUF AUSWAHL
+                </div>
+                <div style={{fontSize:12,color:C.dimText,marginTop:8}}>Fall anklicken für Detailanalyse</div>
+                <div style={{marginTop:14,fontSize:10,color:C.dimText,letterSpacing:1}}>
+                  <span style={{color:C.red,animation:"pulse 1.2s infinite"}}>▮</span>
+                  {" "}SOFORTHANDLUNG: <span style={{color:C.red,fontWeight:700}}>{sofort} FÄLLE</span>
+                </div>
+              </div>
+            )}
+
+            {/* Sozialraum */}
+            <div style={{background:C.bgCard,border:`1px solid ${C.blue}25`,
+              borderTop:`2px solid ${C.cyan}`,borderRadius:6,padding:14}}>
+              <div style={{fontSize:8,color:C.cyan,letterSpacing:3,marginBottom:10,
+                textShadow:`0 0 6px ${C.cyanGlow}`}}>// SOZIALRAUM-BELASTUNG</div>
+              {sozRaum.map(([sr,d])=>{
+                const pct=Math.round(d.km/km_ges*100);
+                const bc=pct>=20?C.red:pct>=14?C.orange:C.blueXL;
+                return(
+                  <div key={sr} style={{marginBottom:9}}>
+                    <div style={{display:"flex",justifyContent:"space-between",fontSize:10,marginBottom:3}}>
+                      <span style={{color:C.white,fontWeight:700}}>{sr}</span>
+                      <span style={{color:C.dimText,fontFamily:"monospace"}}>{d.n}F · {pct}%</span>
+                    </div>
+                    <div style={{height:4,background:C.gridLine,borderRadius:2,overflow:"hidden"}}>
+                      <div style={{width:`${pct}%`,height:"100%",background:bc,
+                        boxShadow:`0 0 6px ${bc}`,borderRadius:2}}/>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Typverteilung */}
+            <div style={{background:C.bgCard,border:`1px solid ${C.blue}25`,
+              borderTop:`2px solid ${C.blue}`,borderRadius:6,padding:14}}>
+              <div style={{fontSize:8,color:C.blueXL,letterSpacing:3,marginBottom:10,
+                textShadow:`0 0 6px ${C.blue}`}}>// TYPVERTEILUNG KOSTEN</div>
+              {["B","B-K","A","C","M"].map(t=>{
+                const cfg=TYP[t];
+                const km_t=FAELLE.filter(f=>f.typ===t).reduce((s,f)=>s+f.km,0);
+                const pct=Math.round(km_t/km_ges*100);
+                return(
+                  <div key={t} style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
+                    <span style={{width:44,fontSize:10,fontWeight:800,color:cfg.c,
+                      textShadow:`0 0 6px ${cfg.glow}`,fontFamily:"monospace"}}>TYP {t}</span>
+                    <div style={{flex:1,height:4,background:C.gridLine,borderRadius:2,overflow:"hidden"}}>
+                      <div style={{width:`${pct}%`,height:"100%",background:cfg.c,
+                        boxShadow:`0 0 6px ${cfg.glow}`,borderRadius:2}}/>
+                    </div>
+                    <span style={{fontSize:9,color:C.dimText,fontFamily:"monospace",
+                      minWidth:56,textAlign:"right"}}>{n(t)}F · {pct}%</span>
+                  </div>
+                );
+              })}
+            </div>
+
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div style={{marginTop:16,borderTop:`1px solid ${C.blue}25`,paddingTop:10,
+          display:"flex",justifyContent:"space-between",fontSize:9,color:C.dimText,letterSpacing:1}}>
+          <span>ASCEND HZE-COCKPIT · JUGENDAMT BOCHUM · DEMO-DATENBASIS · 15 ANONYMISIERTE FÄLLE</span>
+          <span style={{color:C.blueXL}}>
+            DERKAEMMERER.DE · TECHNOLOGIE: HAKO GMBH · ascend-demo.hako.team
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
