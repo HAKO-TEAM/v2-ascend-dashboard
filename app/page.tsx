@@ -127,8 +127,9 @@ function recalcCase(fall: CaseData): CaseData {
 }
 
 function recalcDashboard(cases: CaseData[]) {
-  const totalMonthly = cases.reduce((sum, fall) => sum + caseMonthlyCost(fall), 0);
-  const totalAnnual = cases.reduce((sum, fall) => sum + caseMonthlyCost(fall) * 12, 0);
+  const getMonthlyCost = (fall: CaseData) => Number(fall.monatKostenGesamt) || caseMonthlyCost(fall);
+  const totalMonthly = cases.reduce((sum, fall) => sum + getMonthlyCost(fall), 0);
+  const totalAnnual = cases.reduce((sum, fall) => sum + getMonthlyCost(fall) * 12, 0);
 
   const counts = cases.reduce(
     (acc, fall) => {
@@ -157,13 +158,13 @@ function recalcDashboard(cases: CaseData[]) {
     : 0;
 
   const districtCostMap = cases.reduce((acc, fall) => {
-    acc[fall.stadtteil] = (acc[fall.stadtteil] ?? 0) + caseMonthlyCost(fall) * 12;
+    acc[fall.stadtteil] = (acc[fall.stadtteil] ?? 0) + getMonthlyCost(fall) * 12;
     return acc;
   }, {} as Record<string, number>);
 
   const costByAmpel = (['grün', 'gelb', 'rot'] as Ampelstatus[]).map((ampel) => ({
     name: ampel,
-    monat: cases.filter((fall) => fall.ampelstatus === ampel).reduce((sum, fall) => sum + caseMonthlyCost(fall), 0),
+    monat: cases.filter((fall) => fall.ampelstatus === ampel).reduce((sum, fall) => sum + getMonthlyCost(fall), 0),
     count: cases.filter((fall) => fall.ampelstatus === ampel).length,
   }));
 

@@ -16,12 +16,10 @@ import type { CaseData } from '../../lib/cases';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-function caseMonthlyCost(c: CaseData): number {
-  if (!c.kostenstellen) return 0;
-  if (Array.isArray(c.kostenstellen)) {
-    return (c.kostenstellen as { amount: number }[]).reduce((s, p) => s + Number(p?.amount || 0), 0);
-  }
-  return Object.values(c.kostenstellen as Record<string, number>).reduce((s, v) => s + Number(v || 0), 0);
+// Use the pre-computed monatKostenGesamt – avoids recomputing from kostenstellen
+// which can produce NaN if localStorage data is stale or kostenstellen is malformed.
+function getKosten(c: CaseData): number {
+  return Number(c.monatKostenGesamt) || 0;
 }
 
 function fmt(n: number): string {
@@ -124,7 +122,7 @@ export default function LeitungJugendamt({ cases }: Props) {
 
   // ── Derived KPIs from real cases ──────────────────────────────────────────
   const stats = useMemo(() => {
-    const totalMonthly = cases.reduce((s, c) => s + caseMonthlyCost(c), 0);
+    const totalMonthly = cases.reduce((s, c) => s + getKosten(c), 0);
     const rot = cases.filter(c => c.ampelstatus === 'rot');
     const gelb = cases.filter(c => c.ampelstatus === 'gelb');
     const gruen = cases.filter(c => c.ampelstatus === 'grün');
@@ -153,7 +151,7 @@ export default function LeitungJugendamt({ cases }: Props) {
     cases.forEach(c => {
       if (!srMap[c.stadtteil]) srMap[c.stadtteil] = { n: 0, km: 0 };
       srMap[c.stadtteil].n++;
-      srMap[c.stadtteil].km += caseMonthlyCost(c);
+      srMap[c.stadtteil].km += getKosten(c);
     });
     const sozialraum = Object.entries(srMap).sort((a, b) => b[1].km - a[1].km);
 
@@ -242,7 +240,7 @@ export default function LeitungJugendamt({ cases }: Props) {
               {stats.rot.length}
             </div>
             <div className="text-[10px] font-bold tracking-[0.2em] text-red-400 mt-2">FÄLLE ROT · SOFORT</div>
-            <div className="text-xs text-slate-500 mt-1">Ø {fmt(Math.round(stats.rot.reduce((s,c)=>s+caseMonthlyCost(c),0)/(stats.rot.length||1)))} €/Mon</div>
+            <div className="text-xs text-slate-500 mt-1">Ø {fmt(Math.round(stats.rot.reduce((s,c)=>s+getKosten(c),0)/(stats.rot.length||1)))} €/Mon</div>
           </div>
 
           {/* Eskalation */}
@@ -340,7 +338,7 @@ export default function LeitungJugendamt({ cases }: Props) {
             </div>
             <div className="space-y-3">
               {stats.top3.map((c, i) => {
-                const km = caseMonthlyCost(c);
+                const km = getKosten(c);
                 const colDot = c.ampelstatus === 'rot' ? 'bg-red-500' : 'bg-amber-500';
                 const colText = c.ampelstatus === 'rot' ? 'text-red-400' : 'text-amber-400';
                 const border = c.ampelstatus === 'rot' ? 'border-red-500/30' : 'border-amber-500/30';
@@ -453,7 +451,7 @@ export default function LeitungJugendamt({ cases }: Props) {
             {[...cases]
               .sort((a, b) => (b.eskalationsrisiko || 0) - (a.eskalationsrisiko || 0))
               .map(c => {
-                const km = caseMonthlyCost(c);
+                const km = getKosten(c);
                 const dotColor = c.ampelstatus === 'rot' ? '#ef4444' : c.ampelstatus === 'gelb' ? '#f59e0b' : '#22c55e';
                 const textColor = c.ampelstatus === 'rot' ? 'text-red-400' : c.ampelstatus === 'gelb' ? 'text-amber-300' : 'text-emerald-400';
                 return (
