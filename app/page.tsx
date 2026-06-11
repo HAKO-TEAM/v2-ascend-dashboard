@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, Legend } from 'recharts';
 import { defaultCases, type CaseData, type Interventionsstatus, type Ampelstatus } from '../lib/cases';
 import LeitungJugendamt from './components/LeitungJugendamt';
+import FruehwarnungDashboard from './components/FruehwarnungDashboard';
 
 const STORAGE_KEY = 'ascend-dashboard-hze-cases-v3'; // v3: kostenstellen-Fallback + monatKostenGesamt fix
 const riskFilterOptions = ['Alle', 'grün', 'gelb', 'rot'] as const;
@@ -1411,7 +1412,7 @@ projectedAnnualRelief: 869386,      highCostIncrease: Math.max(1, highCostIncrea
         </>)}
 
         {activeTab === 'fruehwarnung' && (
-          <FruehwarnungPlaceholder />
+          <FruehwarnungDashboard cases={faelle} />
         )}
 
         {activeTab === 'meta' && (
