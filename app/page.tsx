@@ -5,7 +5,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { defaultCases, type CaseData, type Interventionsstatus, type Ampelstatus } from '../lib/cases';
 import LeitungJugendamt from './components/LeitungJugendamt';
 
-const STORAGE_KEY = 'ascend-dashboard-hze-cases-v1';
+const STORAGE_KEY = 'ascend-dashboard-hze-cases-v3'; // v3: kostenstellen-Fallback + monatKostenGesamt fix
 const riskFilterOptions = ['Alle', 'grün', 'gelb', 'rot'] as const;
 const interventionOptions: Interventionsstatus[] = ['Monitoring', 'Frühintervention', 'ASCEND prüfen', 'Akutintervention'];
 
@@ -79,7 +79,12 @@ function recalcCase(fall: CaseData): CaseData {
       }, {} as Record<string, number>)
     : { ...(fall.kostenstellen as Record<string, number>) };
 
-  const monatKostenGesamt = caseMonthlyCost({ ...fall, kostenstellen } as CaseData);
+  // Compute cost from kostenstellen; if 0 (stale/malformed localStorage), fall back to
+  // the value already stored on the case or its defaultCases counterpart.
+  const computedCost = caseMonthlyCost({ ...fall, kostenstellen } as CaseData);
+  const monatKostenGesamt = computedCost > 0
+    ? computedCost
+    : (Number(fall.monatKostenGesamt) > 0 ? Number(fall.monatKostenGesamt) : 0);
   const jahresKostenGesamt = monatKostenGesamt * 12;
 
   // Determine ampel based on new cost thresholds: <= 5000 (grün), 5000-15000 (gelb), >15000 (rot)
