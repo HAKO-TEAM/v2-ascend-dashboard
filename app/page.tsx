@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, Legend } from 'recharts';
 import { defaultCases, type CaseData, type Interventionsstatus, type Ampelstatus } from '../lib/cases';
+import LeitungJugendamt from './components/LeitungJugendamt';
 
 const STORAGE_KEY = 'ascend-dashboard-hze-cases-v1';
 const riskFilterOptions = ['Alle', 'grün', 'gelb', 'rot'] as const;
@@ -960,13 +961,20 @@ projectedAnnualRelief: 869386,      highCostIncrease: Math.max(1, highCostIncrea
             { id: 'fallsteuerung', label: 'Fallsteuerung' },
             { id: 'fruehwarnung', label: 'Frühwarnung' },
             { id: 'meta', label: 'Meta Steuerung' },
+            { id: 'leitung', label: '⬡ Leitung Jugendamt' },
           ].map((tab) => (
             <button
               key={tab.id}
               type="button"
               onClick={() => setActiveTab(tab.id)}
               className={`whitespace-nowrap rounded-full px-5 py-2 text-sm font-semibold uppercase tracking-[0.14em] transition-all ${
-                activeTab === tab.id ? 'bg-cyan-500/15 text-cyan-300 ring-1 ring-cyan-500/30' : 'text-slate-500 hover:text-slate-200'
+                activeTab === tab.id && tab.id === 'leitung'
+                  ? 'bg-red-500/15 text-red-300 ring-1 ring-red-500/30'
+                  : activeTab === tab.id
+                  ? 'bg-cyan-500/15 text-cyan-300 ring-1 ring-cyan-500/30'
+                  : tab.id === 'leitung'
+                  ? 'text-red-500/70 hover:text-red-400'
+                  : 'text-slate-500 hover:text-slate-200'
               }`}
             >
               {tab.label}
@@ -1402,6 +1410,10 @@ projectedAnnualRelief: 869386,      highCostIncrease: Math.max(1, highCostIncrea
 
         {activeTab === 'meta' && (
           <AscendMetaSteuerung />
+        )}
+
+        {activeTab === 'leitung' && (
+          <LeitungJugendamt cases={faelle} />
         )}
       </div>
     </main>
