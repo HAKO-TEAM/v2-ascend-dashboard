@@ -68,11 +68,11 @@ const panels = [
               <div
                 className="w-full rounded-t"
                 style={{
-                  height: `${b.v}%`,
+                  height: `${Math.round(b.v * 0.68)}px`,
                   background: b.actual
                     ? 'linear-gradient(to top, #1d4ed8, #2563eb)'
-                    : 'linear-gradient(to top, #1e3a5f55, #2563eb33)',
-                  border: b.actual ? 'none' : '1px dashed #2563eb55',
+                    : 'linear-gradient(to top, rgba(30,58,95,0.33), rgba(37,99,235,0.2))',
+                  border: b.actual ? 'none' : '1px dashed rgba(37,99,235,0.33)',
                 }}
               />
               <span className="text-slate-600 text-[8px]">{b.m}</span>
