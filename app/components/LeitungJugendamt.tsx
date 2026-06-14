@@ -1,6 +1,7 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
+import type { Ampelstatus } from '../../lib/cases';
 import {
   ComposedChart,
   Area,
@@ -120,6 +121,8 @@ interface Props {
 // ── Main Component ────────────────────────────────────────────────────────────
 
 export default function LeitungJugendamt({ cases }: Props) {
+  const [ampelFilter, setAmpelFilter] = useState<Ampelstatus | null>(null);
+  const [selectedCase, setSelectedCase] = useState<string | null>(null);
 
   // ── Derived KPIs from real cases ──────────────────────────────────────────
   const stats = useMemo(() => {
@@ -393,18 +396,30 @@ export default function LeitungJugendamt({ cases }: Props) {
 
             {/* Ampel-Verteilung */}
             <div className="mt-5 pt-4 border-t border-slate-800">
-              <div className="text-[9px] font-bold tracking-[0.3em] text-blue-400 mb-3">// AMPELVERTEILUNG</div>
+              <div className="text-[9px] font-bold tracking-[0.3em] text-blue-400 mb-3">
+                // AMPELVERTEILUNG · <span className="text-slate-500 normal-case tracking-normal font-normal">Filter anklicken</span>
+              </div>
               <div className="grid grid-cols-3 gap-2 text-center">
-                {[
-                  { label: 'ROT', count: stats.rot.length, color: '#ef4444' },
-                  { label: 'GELB', count: stats.gelb.length, color: '#f59e0b' },
-                  { label: 'GRÜN', count: stats.gruen.length, color: '#22c55e' },
-                ].map(({ label, count, color }) => (
-                  <div key={label} className="rounded-lg bg-slate-800/60 p-2">
-                    <div className="text-2xl font-black" style={{ color, textShadow: `0 0 12px ${color}` }}>{count}</div>
-                    <div className="text-[9px] font-bold tracking-widest mt-0.5" style={{ color }}>{label}</div>
-                  </div>
-                ))}
+                {([
+                  { status: 'rot' as Ampelstatus, label: 'ROT', count: stats.rot.length, color: '#ef4444' },
+                  { status: 'gelb' as Ampelstatus, label: 'GELB', count: stats.gelb.length, color: '#f59e0b' },
+                  { status: 'grün' as Ampelstatus, label: 'GRÜN', count: stats.gruen.length, color: '#22c55e' },
+                ]).map(({ status, label, count, color }) => {
+                  const active = ampelFilter === status;
+                  return (
+                    <button
+                      key={label}
+                      type="button"
+                      onClick={() => { setAmpelFilter(active ? null : status); setSelectedCase(null); }}
+                      className="rounded-lg bg-slate-800/60 p-2 transition-all hover:bg-slate-700/60"
+                      style={active ? { outline: `2px solid ${color}`, outlineOffset: '2px', background: `${color}18` } : {}}
+                    >
+                      <div className="text-2xl font-black" style={{ color, textShadow: `0 0 12px ${color}` }}>{count}</div>
+                      <div className="text-[9px] font-bold tracking-widest mt-0.5" style={{ color }}>{label}</div>
+                      {active && <div className="text-[8px] text-slate-400 mt-0.5">✕ Filter</div>}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -444,32 +459,100 @@ export default function LeitungJugendamt({ cases }: Props) {
         </div>
 
         {/* ── ALLE FÄLLE KOMPAKTÜBERSICHT ───────────────────────────────────── */}
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-5" style={{ borderTop: '2px solid #334155' }}>
-          <div className="text-[9px] font-bold tracking-[0.3em] text-slate-400 mb-4">
-            // ALLE {cases.length} FÄLLE · GESAMTÜBERSICHT JUGENDAMTSLEITUNG
-          </div>
-          <div className="grid grid-cols-4 gap-x-8 gap-y-1.5">
-            {[...cases]
-              .sort((a, b) => (b.eskalationsrisiko || 0) - (a.eskalationsrisiko || 0))
-              .map(c => {
-                const km = getKosten(c);
-                const dotColor = c.ampelstatus === 'rot' ? '#ef4444' : c.ampelstatus === 'gelb' ? '#f59e0b' : '#22c55e';
-                const textColor = c.ampelstatus === 'rot' ? 'text-red-400' : c.ampelstatus === 'gelb' ? 'text-amber-300' : 'text-emerald-400';
+        {(() => {
+          const visible = [...cases]
+            .filter(c => !ampelFilter || c.ampelstatus === ampelFilter)
+            .sort((a, b) => (b.eskalationsrisiko || 0) - (a.eskalationsrisiko || 0));
+          const activeCase = selectedCase ? cases.find(c => c.id === selectedCase) ?? null : null;
+
+          return (
+            <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-5" style={{ borderTop: '2px solid #334155' }}>
+              <div className="flex items-center justify-between mb-4">
+                <div className="text-[9px] font-bold tracking-[0.3em] text-slate-400">
+                  // {ampelFilter
+                    ? `${visible.length} FÄLLE · ${ampelFilter.toUpperCase()} · GEFILTERT`
+                    : `ALLE ${cases.length} FÄLLE · GESAMTÜBERSICHT`}
+                </div>
+                {ampelFilter && (
+                  <button
+                    type="button"
+                    onClick={() => { setAmpelFilter(null); setSelectedCase(null); }}
+                    className="text-[9px] text-slate-500 hover:text-slate-300 border border-slate-700 rounded px-2 py-0.5 transition-colors"
+                  >
+                    ✕ Filter aufheben
+                  </button>
+                )}
+              </div>
+
+              <div className="grid grid-cols-4 gap-x-8 gap-y-0">
+                {visible.map(c => {
+                  const km = getKosten(c);
+                  const dotColor = c.ampelstatus === 'rot' ? '#ef4444' : c.ampelstatus === 'gelb' ? '#f59e0b' : '#22c55e';
+                  const textColor = c.ampelstatus === 'rot' ? 'text-red-400' : c.ampelstatus === 'gelb' ? 'text-amber-300' : 'text-emerald-400';
+                  const isSelected = selectedCase === c.id;
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => setSelectedCase(isSelected ? null : c.id)}
+                      className="flex items-center gap-2 py-1.5 border-b border-slate-800/60 text-left w-full hover:bg-slate-800/40 rounded px-1 transition-colors"
+                      style={isSelected ? { background: `${dotColor}12`, borderBottom: `1px solid ${dotColor}40` } : {}}
+                    >
+                      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: dotColor, boxShadow: `0 0 5px ${dotColor}` }} />
+                      <span className={`font-mono text-xs font-semibold ${textColor} w-20 flex-shrink-0`}>{c.pseudonym}</span>
+                      <span className="text-slate-500 text-[10px] tabular-nums flex-shrink-0">{fmt(km)} €/M</span>
+                      <div className="flex-1 h-1 rounded-full bg-slate-800 min-w-0">
+                        <div className="h-full rounded-full" style={{ width: `${c.eskalationsrisiko}%`, background: dotColor, opacity: 0.7 }} />
+                      </div>
+                      <span className="text-slate-600 text-[10px] tabular-nums flex-shrink-0">{c.eskalationsrisiko}%</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Detail-Panel für ausgewählten Fall */}
+              {activeCase && (() => {
+                const dotColor = activeCase.ampelstatus === 'rot' ? '#ef4444' : activeCase.ampelstatus === 'gelb' ? '#f59e0b' : '#22c55e';
+                const textColor = activeCase.ampelstatus === 'rot' ? 'text-red-400' : activeCase.ampelstatus === 'gelb' ? 'text-amber-300' : 'text-emerald-400';
                 return (
-                  <div key={c.id} className="flex items-center gap-2 py-1 border-b border-slate-800/60">
-                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: dotColor, boxShadow: `0 0 5px ${dotColor}` }} />
-                    <span className={`font-mono text-xs font-semibold ${textColor} w-20 flex-shrink-0`}>{c.pseudonym}</span>
-                    <span className="text-slate-500 text-[10px] tabular-nums flex-shrink-0">{fmt(km)} €/M</span>
-                    <div className="flex-1 h-1 rounded-full bg-slate-800 min-w-0">
-                      <div className="h-full rounded-full"
-                        style={{ width: `${c.eskalationsrisiko}%`, background: dotColor, opacity: 0.7 }} />
+                  <div className="mt-4 rounded-xl border p-4 space-y-3" style={{ borderColor: `${dotColor}40`, background: `${dotColor}08` }}>
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: dotColor, boxShadow: `0 0 8px ${dotColor}` }} />
+                        <span className={`font-mono font-black text-sm ${textColor}`}>{activeCase.pseudonym}</span>
+                        <span className="text-slate-500 text-xs">{activeCase.interventionsstatus}</span>
+                        <span className="text-slate-600 text-xs">·</span>
+                        <span className="text-slate-400 text-xs">{activeCase.stadtteil}</span>
+                      </div>
+                      <button type="button" onClick={() => setSelectedCase(null)} className="text-slate-600 hover:text-slate-300 text-xs flex-shrink-0">✕</button>
                     </div>
-                    <span className="text-slate-600 text-[10px] tabular-nums flex-shrink-0">{c.eskalationsrisiko}%</span>
+                    <div className="text-xs text-slate-300 leading-relaxed">
+                      <span className="text-slate-500">Maßnahme: </span>{activeCase.massnahmenvorschlag}
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-[10px]">
+                      {[
+                        { label: 'Kosten/Mon', value: `€ ${fmt(getKosten(activeCase))}` },
+                        { label: 'Eskalationsrisiko', value: `${activeCase.eskalationsrisiko} %` },
+                        { label: 'Frist', value: activeCase.frist },
+                        { label: 'Nächste Prüfung', value: activeCase.naechsterPrueftermin },
+                      ].map(({ label, value }) => (
+                        <div key={label} className="rounded-lg bg-slate-800/60 px-3 py-2">
+                          <div className="text-slate-500 mb-0.5">{label}</div>
+                          <div className="text-slate-200 font-semibold">{value}</div>
+                        </div>
+                      ))}
+                    </div>
+                    {activeCase.naechsteMassnahme && (
+                      <div className="text-[10px] text-slate-400">
+                        <span className="text-slate-600">Nächste Maßnahme: </span>{activeCase.naechsteMassnahme}
+                      </div>
+                    )}
                   </div>
                 );
-              })}
-          </div>
-        </div>
+              })()}
+            </div>
+          );
+        })()}
 
       </div>
 
