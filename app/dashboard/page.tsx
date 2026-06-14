@@ -336,8 +336,21 @@ type MetaLayer = {
   indicators: string[];
 };
 
-function AscendMetaSteuerung() {
+function AscendMetaSteuerung({ cases }: { cases: CaseData[] }) {
   const [selected, setSelected] = useState<number | null>(null);
+
+  const s = useMemo(() => {
+    const rot = cases.filter(c => c.ampelstatus === 'rot').length;
+    const gelb = cases.filter(c => c.ampelstatus === 'gelb').length;
+    const gruen = cases.filter(c => c.ampelstatus === 'grün').length;
+    const akut = cases.filter(c => c.interventionsstatus === 'Akutintervention').length;
+    const aktiv = cases.filter(c => c.interventionsstatus !== 'Monitoring').length;
+    const interventionsquote = cases.length ? Math.round(aktiv / cases.length * 100) : 0;
+    const totalMonthly = cases.reduce((sum, c) => sum + (Number(c.monatKostenGesamt) || 0), 0);
+    const jahresPotenzial = Math.round(cases.reduce((sum, c) => sum + (c.erwarteteKostensenkung || 0), 0) * 12);
+    const fmt = (n: number) => n.toLocaleString('de-DE');
+    return { rot, gelb, gruen, akut, interventionsquote, totalMonthly, jahresPotenzial, fmt };
+  }, [cases]);
 
   const layers: MetaLayer[] = [
     {
@@ -346,7 +359,7 @@ function AscendMetaSteuerung() {
       statusLabel: 'Verbunden',
       statusClass: 'bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/20',
       description: 'Operative Datenbasis aus Jugendamtssoftware, Kostenträgern und Fallmanagementsystemen. Liefert Falldaten, Kostenstellen und Hilfeverläufe.',
-      indicators: ['20 Fälle erfasst', 'Schnittstelle stabil', 'Datenstand: laufend'],
+      indicators: [`${cases.length} Fälle erfasst`, 'Schnittstelle stabil', 'Datenstand: laufend'],
     },
     {
       label: 'ASCEND',
@@ -362,7 +375,7 @@ function AscendMetaSteuerung() {
       statusLabel: 'Laufend',
       statusClass: 'bg-amber-500/15 text-amber-300 ring-1 ring-amber-500/20',
       description: 'Automatisierte Ampel-Einstufung nach monatlichen Kostenentwicklungen und Eskalationsrisiko. Basis für alle operativen Steuerungsentscheidungen.',
-      indicators: ['7 rot · 10 gelb · 3 grün', 'Tagesaktuell bewertet', 'Schwellenwerte validiert'],
+      indicators: [`${s.rot} rot · ${s.gelb} gelb · ${s.gruen} grün`, 'Tagesaktuell bewertet', 'Schwellenwerte validiert'],
     },
     {
       label: 'INTERVENTIONSSTEUERUNG',
@@ -370,7 +383,7 @@ function AscendMetaSteuerung() {
       statusLabel: 'Aktiv',
       statusClass: 'bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/20',
       description: 'Planung und Koordination operativer Hilfsmaßnahmen auf Basis der Risikolage. Steuert Ressourceneinsatz, Fachkräfte und Maßnahmenwahl.',
-      indicators: ['4 Akutinterventionen', 'Interventionsquote 76 %', 'Fachkräfte koordiniert'],
+      indicators: [`${s.akut} Akutinterventionen`, `Interventionsquote ${s.interventionsquote} %`, 'Fachkräfte koordiniert'],
     },
     {
       label: 'SIMULATION',
@@ -386,7 +399,7 @@ function AscendMetaSteuerung() {
       statusLabel: 'Prognose aktiv',
       statusClass: 'bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/20',
       description: 'Monetäre Entlastungsprognose für kommunale Sozialhaushalte auf Basis operativer Szenarien. Direkte Rückkopplung in die Kämmerei.',
-      indicators: ['€ 869.386 p.a. prognostiziert', 'Einsparpotenzial: € 412.836', '36-Monate-Wirkung berechnet'],
+      indicators: [`€ ${s.fmt(s.totalMonthly * 12)} p.a. prognostiziert`, `Einsparpotenzial: € ${s.fmt(s.jahresPotenzial)}`, '36-Monate-Wirkung berechnet'],
     },
     {
       label: 'RATHAUS / DEZERNAT',
@@ -1416,7 +1429,7 @@ projectedAnnualRelief: 869386,      highCostIncrease: Math.max(1, highCostIncrea
         )}
 
         {activeTab === 'meta' && (
-          <AscendMetaSteuerung />
+          <AscendMetaSteuerung cases={faelle} />
         )}
 
         {activeTab === 'leitung' && (
