@@ -2,8 +2,9 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, Legend } from 'recharts';
-import { defaultCases, konkreteHandlungsschritte, type CaseData, type Interventionsstatus, type Ampelstatus } from '../../lib/cases';
+import { defaultCases, type CaseData, type Interventionsstatus, type Ampelstatus } from '../../lib/cases';
 import LeitungJugendamt from '../components/LeitungJugendamt';
+import Handlungscheckliste from '../components/Handlungscheckliste';
 import FruehwarnungDashboard from '../components/FruehwarnungDashboard';
 
 const STORAGE_KEY = 'ascend-dashboard-hze-cases-v3'; // v3: kostenstellen-Fallback + monatKostenGesamt fix
@@ -1293,17 +1294,7 @@ projectedAnnualRelief: 869386,      highCostIncrease: Math.max(1, highCostIncrea
                     <p className="mt-2 text-slate-100">{selectedFall.ascendEmpfehlung}</p>
                   </div>
 
-                  <div className="rounded-3xl border border-cyan-500/30 bg-slate-900/80 p-4 text-sm text-slate-300">
-                    <p className="text-xs uppercase tracking-[0.24em] text-cyan-300">Konkrete Handlungsschritte — was jetzt zu tun ist</p>
-                    <ol className="mt-3 space-y-2.5">
-                      {konkreteHandlungsschritte(selectedFall).map((s, i) => (
-                        <li key={i} className="flex gap-3">
-                          <span className="mt-0.5 flex h-5 w-5 flex-none items-center justify-center rounded-full bg-cyan-500/20 text-[11px] font-bold text-cyan-300">{i + 1}</span>
-                          <span className="leading-snug text-slate-100">{s}</span>
-                        </li>
-                      ))}
-                    </ol>
-                  </div>
+                  <Handlungscheckliste fall={selectedFall} />
 
                   <div className="rounded-3xl bg-slate-900/80 p-4 text-sm text-slate-300">
                     <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Maßnahmenvorschlag</p>

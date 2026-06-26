@@ -1,7 +1,8 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { konkreteHandlungsschritte, type Ampelstatus } from '../../lib/cases';
+import type { Ampelstatus } from '../../lib/cases';
+import Handlungscheckliste from './Handlungscheckliste';
 import {
   ComposedChart,
   Area,
@@ -529,17 +530,7 @@ export default function LeitungJugendamt({ cases }: Props) {
                     <div className="text-xs text-slate-300 leading-relaxed">
                       <span className="text-slate-500">Maßnahme: </span>{activeCase.massnahmenvorschlag}
                     </div>
-                    <div className="rounded-lg border border-cyan-500/30 bg-slate-900/60 p-3">
-                      <div className="mb-2 text-[10px] uppercase tracking-[0.22em] text-cyan-300">Konkrete Handlungsschritte — jetzt</div>
-                      <ol className="space-y-1.5">
-                        {konkreteHandlungsschritte(activeCase).map((s, i) => (
-                          <li key={i} className="flex gap-2 text-[11px] leading-snug text-slate-200">
-                            <span className="mt-0.5 flex h-4 w-4 flex-none items-center justify-center rounded-full bg-cyan-500/20 text-[9px] font-bold text-cyan-300">{i + 1}</span>
-                            <span>{s}</span>
-                          </li>
-                        ))}
-                      </ol>
-                    </div>
+                    <Handlungscheckliste fall={activeCase} compact />
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-[10px]">
                       {[
                         { label: 'Kosten/Mon', value: `€ ${fmt(getKosten(activeCase))}` },
