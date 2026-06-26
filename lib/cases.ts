@@ -283,3 +283,69 @@ export const defaultCases: CaseData[] = [
   ...Array.from({ length: 8 }, (_, i) => makeCase(i + 6, 'gelb', 8500 + i * 900)),
   ...Array.from({ length: 7 }, (_, i) => makeCase(i + 14, 'rot', 18800 + i * 1900)),
 ];
+
+// ─── FALLINDIVIDUELLE, KONKRETE HANDLUNGSSCHRITTE ("was ist jetzt zu tun") ─────
+const fmtE = (n: number) => Math.round(n).toLocaleString('de-DE');
+const dominantKostenstelle = (c: CaseData): string => {
+  const ks = (c.kostenstellen && typeof c.kostenstellen === 'object') ? (c.kostenstellen as Record<string, number>) : {};
+  const entries = Object.entries(ks);
+  if (!entries.length) return '';
+  return entries.sort((a, b) => Number(b[1]) - Number(a[1]))[0][0];
+};
+
+export function konkreteHandlungsschritte(c: CaseData): string[] {
+  const steps: string[] = [];
+  const name = (c.pseudonym || '').replace('Fam. ', '') || 'Familie';
+  const kind = `${c.pseudonym} (${c.alter} J., ${String(c.geschlecht).toLowerCase()}, ${c.stadtteil})`;
+  const rf = c.risikofaktoren || [];
+  const sf = c.schutzfaktoren || [];
+  const dom = dominantKostenstelle(c);
+  const frist = c.frist || 'binnen 14 Tagen';
+  const pr = c.naechsterPrueftermin || 'zum nächsten Hilfeplangespräch';
+  const reHigh = c.reintegrationswahrscheinlichkeit >= 50;
+  const eskHigh = c.eskalationsrisiko >= 65;
+  const jahr = (c.erwarteteKostensenkung || 0) * 12;
+
+  if (rf.some((x) => /gewalt|sicherheit/i.test(x)) && c.ampelstatus !== 'grün') {
+    steps.push(`Schutz zuerst: § 8a-Gefährdungseinschätzung zu ${kind} ${frist} aktualisieren, „insoweit erfahrene Fachkraft" hinzuziehen und einen schriftlichen Sicherheitsplan mit der Familie ${name} vereinbaren; § 42-Inobhutnahme als Option vorhalten.`);
+  } else if (c.ampelstatus === 'rot') {
+    steps.push(`Akut-Fallkonferenz ${frist} einberufen (Fallführung, Träger, Schule); Steuerungsverantwortung und Eskalationspfad für ${kind} schriftlich festlegen.`);
+  }
+
+  if (/Stationär/i.test(dom)) {
+    if (reHigh) {
+      steps.push(`Rückführung planen: stationäre Hilfe (§ 34) schrittweise in ambulante Hilfe (§ 30 Erziehungsbeistand / § 31 SPFH) überführen — Belastungserprobungen ab sofort, verbindlicher Zieltermin im Hilfeplan (§ 36) bis ${pr}. Reintegrationschance ${c.reintegrationswahrscheinlichkeit} % nutzen; erwartete Entlastung rund ${fmtE(jahr)} €/Jahr.`);
+    } else {
+      steps.push(`Stationäre Hilfe (§ 34) auf Wirksamkeit prüfen: Hilfeplan (§ 36) mit messbaren Teilhabezielen schärfen, Verweildauer und Trägerleistung im Fachcontrolling bewerten — Überprüfung bis ${pr}.`);
+    }
+  } else if (eskHigh) {
+    steps.push(`Eskalation ambulant→stationär verhindern: ambulante Hilfe intensivieren (§ 30 → § 31, Frequenz auf 2×/Woche), wöchentliche Lagebewertung statt Settingwechsel; Krisenrufbereitschaft mit dem Träger klären.`);
+  } else {
+    steps.push(`Stabilisierung sichern: laufende ambulante Hilfe fortführen, Wirkung im Hilfeplan (§ 36) bis ${pr} belegen und die Hilfe danach bedarfsgerecht zurückfahren.`);
+  }
+
+  const rfSteps: Record<string, string> = {
+    'schul': `Schule: ${frist} Fallrunde mit Schule + Schulsozialarbeit zu ${name}; Anwesenheit wöchentlich monitoren, Bildungs- und Teilhabepaket sowie ggf. Schulbegleitung beantragen.`,
+    'familiensystem': `Familiensystem: SPFH (§ 31) installieren bzw. auf 2 Termine/Woche erhöhen, Erziehungsfähigkeit im Hilfeplan neu bewerten und eine schriftliche Zielvereinbarung mit ${name} schließen.`,
+    'psychisch': `Psychische Belastung: kinder-/jugendpsychiatrische Abklärung terminieren, § 35a (seelische Behinderung) prüfen und einen Therapieplatz absichern — Hintergrund: ${c.psychologischeEinschaetzung}`,
+    'sucht': `Suchtbelastung: Suchtberatung verbindlich einbinden (Eltern und/oder Jugendliche/r) mit klarer Zielvereinbarung und Überprüfung im Hilfeplan.`,
+    'rückzug': `Sozialer Rückzug: aufsuchende Arbeit 1×/Woche aufnehmen und Peer-/Sport-/Jugendtreff-Anbindung in ${c.stadtteil} aktivieren.`,
+    'übergang': `Übergangsbegleitung: verbindlichen Übergabeplan (Schule→Beruf bzw. stationär→ambulant) mit Verantwortlichen und Terminen festlegen.`,
+    'eskalation': `Eskalationsrisiko: engmaschige Hilfeplanung im 4-Wochen-Takt und Krisenleitfaden (Wer-macht-was) für ${name} hinterlegen.`,
+  };
+  let added = 0;
+  for (const r of rf) {
+    const key = Object.keys(rfSteps).find((k) => r.toLowerCase().includes(k));
+    if (key && added < 2) { steps.push(rfSteps[key]); delete rfSteps[key]; added += 1; }
+  }
+
+  const fl = c.familienlage || '';
+  if (/alleinerziehend/i.test(fl)) steps.push(`Entlastung der alleinerziehenden Bezugsperson: Tagesgruppe (§ 32)/OGS und Notbetreuung (§ 20) prüfen, Termine für ${name} bündeln.`);
+  else if (/migrations/i.test(fl)) steps.push(`Sprachmittlung zu allen Gesprächen organisieren und kultursensible Beratung für ${name} sicherstellen.`);
+  else if (/wohnsituation/i.test(fl)) steps.push(`Wohnsicherheit herstellen: § 16-Beratung und Wohnungsamt einschalten — stabile Wohnsituation ist Voraussetzung jeder weiteren Stabilisierung.`);
+  else if (/mehrgeneration/i.test(fl)) steps.push(`Großeltern/Bezugspersonen im Mehrgenerationenhaushalt als Ressource verbindlich in die Hilfeplanung einbeziehen.`);
+
+  if (sf.length) steps.push(`Ressource aktiv nutzen: „${sf[0]}"${sf[1] ? ` und „${sf[1]}"` : ''} fest in die Hilfeplanung einbinden und stützen.`);
+
+  return steps.slice(0, 5);
+}
