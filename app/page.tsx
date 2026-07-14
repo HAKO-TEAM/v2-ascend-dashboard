@@ -231,6 +231,15 @@ export default function LandingPage() {
 
           <div className="flex flex-wrap gap-4">
             <a
+              href="/leitfaden"
+              className="inline-flex items-center gap-2.5 px-7 py-3.5 rounded-xl text-sm font-black tracking-wide transition-all hover:scale-105 active:scale-95 border-2 border-cyan-500/60 bg-cyan-500/10 text-cyan-200"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+              </svg>
+              Leitfaden ansehen
+            </a>
+            <a
               href="/dashboard"
               className="inline-flex items-center gap-2.5 px-7 py-3.5 rounded-xl text-sm font-black tracking-wide transition-all hover:scale-105 active:scale-95"
               style={{

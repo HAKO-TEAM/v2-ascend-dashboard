@@ -6,6 +6,7 @@ import { defaultCases, type CaseData, type Interventionsstatus, type Ampelstatus
 import LeitungJugendamt from '../components/LeitungJugendamt';
 import Handlungscheckliste from '../components/Handlungscheckliste';
 import FruehwarnungDashboard from '../components/FruehwarnungDashboard';
+import TrajektoriePrognose from '../components/TrajektoriePrognose';
 
 const STORAGE_KEY = 'ascend-dashboard-hze-cases-v3'; // v3: kostenstellen-Fallback + monatKostenGesamt fix
 const riskFilterOptions = ['Alle', 'grün', 'gelb', 'rot'] as const;
@@ -976,7 +977,9 @@ projectedAnnualRelief: 869386,      highCostIncrease: Math.max(1, highCostIncrea
   return (
     <main className="min-h-screen text-slate-100">
       <nav className="sticky top-0 z-50 border-b border-slate-800/90 bg-slate-950/95 backdrop-blur-sm px-6 sm:px-8 lg:px-12">
-        <div className="mx-auto max-w-8xl flex items-center gap-1 overflow-x-auto py-3">
+        <div className="mx-auto max-w-8xl flex items-center gap-3 py-3">
+          <a href="/" className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-300 transition hover:border-cyan-500/50 hover:text-cyan-200">← Übersicht</a>
+          <div className="flex items-center gap-1 overflow-x-auto">
           {[
             { id: 'executive', label: 'Executive Cockpit' },
             { id: 'fallsteuerung', label: 'Fallsteuerung' },
@@ -1001,6 +1004,11 @@ projectedAnnualRelief: 869386,      highCostIncrease: Math.max(1, highCostIncrea
               {tab.label}
             </button>
           ))}
+          </div>
+          <a href="/leitfaden" className="shrink-0 ml-auto inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-br from-cyan-500 to-sky-600 px-3.5 py-1.5 text-xs font-bold text-white transition hover:scale-[1.03]">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+            Leitfaden
+          </a>
         </div>
       </nav>
       <div className="mx-auto max-w-8xl space-y-8 px-6 py-8 sm:px-8 lg:px-12">
@@ -1016,6 +1024,8 @@ projectedAnnualRelief: 869386,      highCostIncrease: Math.max(1, highCostIncrea
               <div className="rounded-3xl border border-slate-800/90 bg-slate-900/80 px-4 py-3 text-sm text-slate-300">Enterprise-Design für operative Lageführung.</div>
             </div>
           </div>
+
+          <TrajektoriePrognose />
 
           <div className="grid gap-4 xl:grid-cols-4">
             <MetricCard label="Gesamtbudget" value={formatCurrency(Math.round(summary.totalAnnual * 1.04))} description="Planmäßige Jahressteuerung" />
