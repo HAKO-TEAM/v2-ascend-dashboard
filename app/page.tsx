@@ -12,7 +12,7 @@ const kpis = [
 ];
 
 const steps = [
-  { n: '01', title: 'Datenzugang', body: 'ASCEND greift auf Ihre bestehende Fallsoftware zu – kein Systemwechsel, kein IT-Projekt.' },
+  { n: '01', title: 'Datenzugang', body: 'Ein einmaliger, anonymisierter Export aus Ihrer bestehenden Fallsoftware genügt – lesend, keine Schnittstelle, kein Schreibzugriff. Kein Systemwechsel, kein IT-Projekt.' },
   { n: '02', title: 'Pilot live in 3 Wochen', body: 'Wir konfigurieren die Plattform für Lindenau. Nach drei Wochen sehen Sie die ersten Frühwarnsignale.' },
   { n: '03', title: 'Steuerung & Reporting', body: 'Monatliche §79a-Berichte, Träger-Controlling und Budgetprognosen – alles in einem Dashboard.' },
 ];

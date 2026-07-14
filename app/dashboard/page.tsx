@@ -358,10 +358,10 @@ function AscendMetaSteuerung({ cases }: { cases: CaseData[] }) {
     {
       label: 'FACHVERFAHREN',
       accent: false,
-      statusLabel: 'Verbunden',
+      statusLabel: 'Lesezugriff',
       statusClass: 'bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/20',
-      description: 'Operative Datenbasis aus Jugendamtssoftware, Kostenträgern und Fallmanagementsystemen. Liefert Falldaten, Kostenstellen und Hilfeverläufe.',
-      indicators: [`${cases.length} Fälle erfasst`, 'Schnittstelle stabil', 'Datenstand: laufend'],
+      description: 'Anonymisierte Strukturdaten aus den Fachverfahren – Falltyp, Leistungsart, Kostenstellen und Hilfeverläufe. Lesend, kein Schreibzugriff.',
+      indicators: [`${cases.length} Fälle erfasst`, 'Lesezugriff aktiv', 'Datenstand: laufend'],
     },
     {
       label: 'ASCEND',
@@ -468,7 +468,7 @@ function AscendMetaSteuerung({ cases }: { cases: CaseData[] }) {
         <div className="mt-5 border-t border-slate-800/70 pt-4">
           <p className="text-xs text-slate-500 tracking-wide">
             {selected === null
-              ? 'Schicht anklicken für Details · ASCEND verbindet Fachverfahren, operative Jugendhilfesteuerung und kommunale Haushaltssteuerung.'
+              ? 'Schicht anklicken für Details · ASCEND analysiert auf der META-Ebene und bringt operative Jugendhilfesteuerung und kommunale Haushaltssteuerung in ein gemeinsames Lagebild.'
               : 'Andere Schicht anklicken oder ✕ zum Schließen.'}
           </p>
         </div>
